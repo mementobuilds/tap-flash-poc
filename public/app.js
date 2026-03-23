@@ -3,7 +3,6 @@ const STORAGE_KEY = 'tap-flash-best-average';
 
 const arenaButton = document.getElementById('arenaButton');
 const restartButton = document.getElementById('restartButton');
-const themeButton = document.getElementById('themeButton');
 const statusMessage = document.getElementById('statusMessage');
 const roundDisplay = document.getElementById('roundDisplay');
 const averageDisplay = document.getElementById('averageDisplay');
@@ -24,9 +23,6 @@ setArenaState('idle', 'Start game');
 
 arenaButton.addEventListener('click', handleArenaClick);
 restartButton.addEventListener('click', resetGame);
-themeButton.addEventListener('click', () => {
-  document.body.classList.toggle('theme-amber');
-});
 
 function handleArenaClick() {
   if (state.phase === 'idle' || state.phase === 'finished') {

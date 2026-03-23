@@ -26,10 +26,6 @@ body {
   color: var(--text);
 }
 
-body.theme-amber {
-  --accent: #f59e0b;
-  --accent-soft: rgba(245, 158, 11, 0.22);
-}
 
 .shell {
   width: min(960px, calc(100% - 2rem));
@@ -181,6 +177,14 @@ h2 {
   border-radius: 999px;
   padding: 0.75rem 1rem;
   cursor: pointer;
+}
+
+.site-footer {
+  margin-top: 1rem;
+  padding: 0 0.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .instructions {
