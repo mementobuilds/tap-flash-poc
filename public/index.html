@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tap Flash</title>
+    <meta name="description" content="Tap Flash is a minimal reaction game built by Goji." />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Goji × VCL POC</p>
+          <h1>Tap Flash</h1>
+        </div>
+        <button id="themeButton" class="ghost-button" type="button" aria-label="Toggle accent theme">Shift tone</button>
+      </header>
+
+      <section class="panel hero">
+        <div class="hero-copy">
+          <p class="label">Minimal reaction game</p>
+          <h2>Wait for the flash. Then tap fast.</h2>
+          <p class="subtle">
+            Five rounds. One rule. Don’t click early.
+          </p>
+        </div>
+        <div class="stats-grid" aria-label="Game stats">
+          <article class="stat-card">
+            <span class="stat-label">Round</span>
+            <strong id="roundDisplay">0 / 5</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Average</span>
+            <strong id="averageDisplay">—</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Best ever</span>
+            <strong id="bestDisplay">—</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel arena-panel">
+        <div id="statusMessage" class="status-message">Press start when you’re ready.</div>
+        <button id="arenaButton" class="arena idle" type="button">Start game</button>
+        <div class="helper-row">
+          <span id="lastResult" class="helper-text">No rounds played yet.</span>
+          <button id="restartButton" class="ghost-button hidden" type="button">Play again</button>
+        </div>
+      </section>
+
+      <section class="panel instructions">
+        <h3>How it works</h3>
+        <ol>
+          <li>Tap <strong>Start game</strong>.</li>
+          <li>Wait through the dark phase.</li>
+          <li>When the arena flashes, tap as fast as you can.</li>
+          <li>Finish all 5 rounds to get your average.</li>
+        </ol>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,221 @@
+:root {
+  --bg: #0b1020;
+  --bg-elevated: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #edf2f7;
+  --muted: #9fb0c4;
+  --accent: #7c3aed;
+  --accent-soft: rgba(124, 58, 237, 0.2);
+  --success: #22c55e;
+  --danger: #f97316;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(124, 58, 237, 0.2), transparent 28%),
+    linear-gradient(180deg, #11172b 0%, var(--bg) 100%);
+  color: var(--text);
+}
+
+body.theme-amber {
+  --accent: #f59e0b;
+  --accent-soft: rgba(245, 158, 11, 0.22);
+}
+
+.shell {
+  width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.eyebrow,
+.label,
+.stat-label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  margin-top: 0.15rem;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+h2 {
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  line-height: 1.1;
+}
+
+.subtle,
+.helper-text,
+.instructions li {
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 1rem;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  justify-content: center;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.stat-card strong {
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+}
+
+.arena-panel {
+  padding: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.status-message {
+  text-align: center;
+  color: var(--muted);
+  min-height: 1.5rem;
+}
+
+.arena {
+  width: 100%;
+  min-height: 360px;
+  border: none;
+  border-radius: 28px;
+  color: var(--text);
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+  border: 1px solid var(--border);
+  transition: transform 120ms ease, background 180ms ease, box-shadow 180ms ease;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.arena:hover {
+  transform: translateY(-1px);
+}
+
+.arena.waiting {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+}
+
+.arena.ready {
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.16), transparent 32%), var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 50px var(--accent-soft);
+}
+
+.arena.too-soon {
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.25), rgba(249, 115, 22, 0.16));
+}
+
+.helper-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.5rem;
+}
+
+.ghost-button {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+}
+
+.instructions {
+  margin-top: 1rem;
+  padding: 1rem 1.2rem;
+}
+
+.instructions ol {
+  margin: 0.85rem 0 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: min(100% - 1rem, 960px);
+    padding-top: 1rem;
+  }
+
+  .topbar,
+  .hero,
+  .helper-row {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .arena {
+    min-height: 300px;
+  }
+}
