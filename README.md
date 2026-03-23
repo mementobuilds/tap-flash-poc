@@ -43,6 +43,22 @@ node scripts/poll-insights.js
 node scripts/reset-insights-state.js
 ```
 
+## Deployment
+
+Primary live deployment now uses:
+- GitHub repo: `https://github.com/mementobuilds/tap-flash-poc.git`
+- Railway URL: `https://tap-flash-web-production.up.railway.app`
+
+### Push the latest approved changes
+
+```bash
+./scripts/push-deploy.sh
+```
+
+Railway autodeploys from the GitHub repo after the push lands on `main`.
+
+The old local Node server + tunnel path is now just a fallback/debug path, not the primary public home.
+
 ## Notes
 
 - Plain HTML/CSS/JS frontend
