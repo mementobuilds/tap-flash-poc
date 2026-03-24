@@ -27,7 +27,7 @@ body {
 }
 
 .shell {
-  width: min(960px, calc(100% - 2rem));
+  width: min(1100px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 2rem 0 3rem;
 }
@@ -52,6 +52,7 @@ body {
 h1,
 h2,
 h3,
+h4,
 p {
   margin: 0;
 }
@@ -66,10 +67,15 @@ h2 {
   line-height: 1.1;
 }
 
+h4 {
+  font-size: 1.1rem;
+}
+
 .subtle,
 .helper-text,
 .instructions li,
-.leaderboard-form label {
+.leaderboard-form label,
+.form-meta {
   color: var(--muted);
 }
 
@@ -166,7 +172,8 @@ h2 {
 .helper-row,
 .leaderboard-header,
 .leaderboard-form-row,
-.leaderboard-item {
+.leaderboard-item,
+.board-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -188,6 +195,26 @@ h2 {
 
 .ghost-button:hover {
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+.leaderboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.leaderboard-board {
+  padding: 1rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  gap: 0.9rem;
+  min-height: 100%;
+}
+
+.board-head {
+  align-items: flex-start;
 }
 
 .leaderboard-list {
@@ -232,6 +259,11 @@ h2 {
   margin-bottom: 0.8rem;
 }
 
+.form-meta {
+  display: block;
+  margin-top: 0.4rem;
+}
+
 .leaderboard-form input {
   width: 100%;
   max-width: 7rem;
@@ -274,9 +306,15 @@ h2 {
   display: none;
 }
 
+@media (max-width: 900px) {
+  .leaderboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 720px) {
   .shell {
-    width: min(100% - 1rem, 960px);
+    width: min(100% - 1rem, 1100px);
     padding-top: 1rem;
   }
 
@@ -285,7 +323,8 @@ h2 {
   .helper-row,
   .leaderboard-header,
   .leaderboard-form-row,
-  .leaderboard-item {
+  .leaderboard-item,
+  .board-head {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;

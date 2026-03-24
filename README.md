@@ -94,3 +94,5 @@ The old local Node server + tunnel path is now just a fallback/debug path, not t
 - Tiny Node static server for simple deployment
 - Designed to be easy to iterate based on community feedback
 - Poller state is stored under `.state/` and ignored by git
+- Leaderboard data now persists across redeploys when the service has a mounted volume at `/data` (the current Railway production service does)
+- The live leaderboard API now serves three windows: daily (last 24 hours), weekly (last 7 days), and all-time

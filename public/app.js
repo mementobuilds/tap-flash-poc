@@ -2,6 +2,27 @@ const TOTAL_ROUNDS = 5;
 const STORAGE_KEY = 'tap-flash-best-average';
 const LEADERBOARD_LIMIT = 10;
 
+const BOARD_DEFINITIONS = {
+  daily: {
+    key: 'daily',
+    label: 'Daily',
+    detail: 'Last 24 hours',
+    emptyText: 'No scores in the last 24 hours yet. Be the first.'
+  },
+  weekly: {
+    key: 'weekly',
+    label: 'Weekly',
+    detail: 'Last 7 days',
+    emptyText: 'No scores in the last 7 days yet. Set the pace.'
+  },
+  allTime: {
+    key: 'allTime',
+    label: 'All-time',
+    detail: 'Best ever',
+    emptyText: 'No all-time scores yet. Make history.'
+  }
+};
+
 const arenaButton = document.getElementById('arenaButton');
 const restartButton = document.getElementById('restartButton');
 const statusMessage = document.getElementById('statusMessage');
@@ -9,13 +30,26 @@ const roundDisplay = document.getElementById('roundDisplay');
 const averageDisplay = document.getElementById('averageDisplay');
 const bestDisplay = document.getElementById('bestDisplay');
 const lastResult = document.getElementById('lastResult');
-const leaderboardList = document.getElementById('leaderboardList');
-const leaderboardEmpty = document.getElementById('leaderboardEmpty');
-const leaderboardDate = document.getElementById('leaderboardDate');
 const leaderboardForm = document.getElementById('leaderboardForm');
 const initialsInput = document.getElementById('initialsInput');
 const qualifyingScore = document.getElementById('qualifyingScore');
 const leaderboardMessage = document.getElementById('leaderboardMessage');
+const qualifyingBoards = document.getElementById('qualifyingBoards');
+
+const boardElements = {
+  daily: {
+    list: document.getElementById('dailyLeaderboardList'),
+    empty: document.getElementById('dailyLeaderboardEmpty')
+  },
+  weekly: {
+    list: document.getElementById('weeklyLeaderboardList'),
+    empty: document.getElementById('weeklyLeaderboardEmpty')
+  },
+  allTime: {
+    list: document.getElementById('allTimeLeaderboardList'),
+    empty: document.getElementById('allTimeLeaderboardEmpty')
+  }
+};
 
 const audioState = {
   context: null,
@@ -29,13 +63,13 @@ const state = {
   timeoutId: null,
   scores: [],
   bestAverage: loadBestAverage(),
-  leaderboard: emptyLeaderboard(),
+  leaderboards: emptyLeaderboardPayload(),
   pendingEntry: null,
   leaderboardLoaded: false
 };
 
 updateBestDisplay();
-renderLeaderboard();
+renderLeaderboards();
 refreshLeaderboard();
 setArenaState('idle', 'Start game');
 
@@ -156,9 +190,10 @@ function resetGame() {
   restartButton.classList.add('hidden');
   leaderboardForm.classList.add('hidden');
   leaderboardMessage.textContent = '';
+  qualifyingBoards.textContent = '';
   initialsInput.value = '';
   setArenaState('idle', 'Start game');
-  renderLeaderboard();
+  renderLeaderboards();
 }
 
 function setArenaState(phase, label) {
@@ -181,23 +216,35 @@ function updateBestDisplay() {
   bestDisplay.textContent = state.bestAverage === null ? '—' : `${state.bestAverage} ms`;
 }
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function formatTodayLabel(key) {
-  const date = new Date(`${key}T00:00:00`);
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric'
-  }).format(date);
-}
-
-function emptyLeaderboard() {
+function emptyLeaderboardPayload() {
   return {
-    date: todayKey(),
-    entries: []
+    generatedAt: null,
+    leaderboards: Object.fromEntries(
+      Object.entries(BOARD_DEFINITIONS).map(([key, definition]) => [key, {
+        key,
+        label: definition.label,
+        detail: definition.detail,
+        entries: []
+      }])
+    )
   };
+}
+
+function normalizeLeaderboardPayload(payload) {
+  if (payload && payload.leaderboards && payload.leaderboards.daily && payload.leaderboards.weekly && payload.leaderboards.allTime) {
+    return {
+      generatedAt: payload.generatedAt || null,
+      leaderboards: payload.leaderboards
+    };
+  }
+
+  if (payload && Array.isArray(payload.entries)) {
+    const fallback = emptyLeaderboardPayload();
+    fallback.leaderboards.daily.entries = payload.entries;
+    return fallback;
+  }
+
+  return emptyLeaderboardPayload();
 }
 
 async function refreshLeaderboard() {
@@ -206,26 +253,31 @@ async function refreshLeaderboard() {
       headers: { 'cache-control': 'no-cache' }
     });
     if (!response.ok) throw new Error('Could not load leaderboard');
-    state.leaderboard = await response.json();
+    state.leaderboards = normalizeLeaderboardPayload(await response.json());
     state.leaderboardLoaded = true;
-    renderLeaderboard();
+    renderLeaderboards();
   } catch {
-    leaderboardMessage.textContent = 'Leaderboard unavailable right now.';
+    leaderboardMessage.textContent = 'Leaderboards unavailable right now.';
   }
 }
 
-function renderLeaderboard() {
-  leaderboardDate.textContent = formatTodayLabel(state.leaderboard.date);
-  leaderboardList.innerHTML = '';
+function renderLeaderboards() {
+  Object.entries(BOARD_DEFINITIONS).forEach(([key, definition]) => {
+    const board = state.leaderboards.leaderboards[key] || { entries: [] };
+    const elements = boardElements[key];
+    elements.list.innerHTML = '';
 
-  if (!state.leaderboard.entries.length) {
-    leaderboardEmpty.classList.remove('hidden');
-    leaderboardList.classList.add('hidden');
-  } else {
-    leaderboardEmpty.classList.add('hidden');
-    leaderboardList.classList.remove('hidden');
+    if (!board.entries.length) {
+      elements.empty.textContent = definition.emptyText;
+      elements.empty.classList.remove('hidden');
+      elements.list.classList.add('hidden');
+      return;
+    }
 
-    state.leaderboard.entries.forEach((entry, index) => {
+    elements.empty.classList.add('hidden');
+    elements.list.classList.remove('hidden');
+
+    board.entries.forEach((entry, index) => {
       const item = document.createElement('li');
       item.className = 'leaderboard-item';
       item.innerHTML = `
@@ -233,26 +285,32 @@ function renderLeaderboard() {
         <span class="leaderboard-name">${entry.name}</span>
         <strong class="leaderboard-score">${entry.score} ms</strong>
       `;
-      leaderboardList.appendChild(item);
+      elements.list.appendChild(item);
     });
-  }
+  });
 
   if (!state.pendingEntry) {
     leaderboardForm.classList.add('hidden');
   }
 }
 
+function scoreQualifies(score, entries) {
+  if (entries.length < LEADERBOARD_LIMIT) return true;
+  return score < entries[entries.length - 1].score;
+}
+
 async function maybeQualifyForLeaderboard(score) {
   await refreshLeaderboard();
-  const entries = state.leaderboard.entries;
-  const cutoff = entries.length < LEADERBOARD_LIMIT ? Infinity : entries[entries.length - 1].score;
+  const qualifyingKeys = Object.keys(BOARD_DEFINITIONS)
+    .filter((key) => scoreQualifies(score, state.leaderboards.leaderboards[key]?.entries || []));
 
-  if (entries.length < LEADERBOARD_LIMIT || score < cutoff) {
-    state.pendingEntry = { score };
+  if (qualifyingKeys.length) {
+    state.pendingEntry = { score, qualifyingKeys };
     qualifyingScore.textContent = `${score} ms`;
-    leaderboardMessage.textContent = entries.length < LEADERBOARD_LIMIT
-      ? 'New score enters today\'s shared top 10. Add your 3-letter name.'
-      : `You cracked today\'s shared top 10. Enter your 3-letter name for ${score} ms.`;
+    qualifyingBoards.textContent = humanizeBoardNames(qualifyingKeys);
+    leaderboardMessage.textContent = qualifyingKeys.length === 1
+      ? `You cracked the ${humanizeBoardNames(qualifyingKeys)} board. Add your 3-letter name.`
+      : `You landed on the ${humanizeBoardNames(qualifyingKeys)} boards. Add your 3-letter name.`;
     leaderboardForm.classList.remove('hidden');
     initialsInput.value = '';
     initialsInput.focus();
@@ -260,7 +318,8 @@ async function maybeQualifyForLeaderboard(score) {
   }
 
   leaderboardForm.classList.add('hidden');
-  leaderboardMessage.textContent = `Score ${score} ms did not reach today\'s shared top 10.`;
+  qualifyingBoards.textContent = '';
+  leaderboardMessage.textContent = `Score ${score} ms did not reach the live leaderboards.`;
 }
 
 async function handleLeaderboardSubmit(event) {
@@ -287,24 +346,39 @@ async function handleLeaderboardSubmit(event) {
     });
 
     const payload = await response.json();
+    state.leaderboards = normalizeLeaderboardPayload(payload);
+    renderLeaderboards();
+
     if (!response.ok) {
-      state.leaderboard = payload.leaderboard || state.leaderboard;
-      renderLeaderboard();
       leaderboardMessage.textContent = payload.error || 'Could not save score.';
       state.pendingEntry = null;
+      qualifyingBoards.textContent = '';
       leaderboardForm.classList.add('hidden');
       return;
     }
 
-    state.leaderboard = payload;
-    leaderboardMessage.textContent = `${name} added with ${state.pendingEntry.score} ms.`;
+    const acceptedBoards = Array.isArray(payload.acceptedBoards) && payload.acceptedBoards.length
+      ? payload.acceptedBoards
+      : state.pendingEntry.qualifyingKeys;
+
+    leaderboardMessage.textContent = acceptedBoards.length === 1
+      ? `${name} added with ${state.pendingEntry.score} ms to the ${humanizeBoardNames(acceptedBoards)} board.`
+      : `${name} added with ${state.pendingEntry.score} ms to the ${humanizeBoardNames(acceptedBoards)} boards.`;
     leaderboardForm.classList.add('hidden');
     state.pendingEntry = null;
+    qualifyingBoards.textContent = '';
     initialsInput.value = '';
-    renderLeaderboard();
+    renderLeaderboards();
   } catch {
     leaderboardMessage.textContent = 'Could not save score right now.';
   }
+}
+
+function humanizeBoardNames(keys) {
+  const labels = keys.map((key) => BOARD_DEFINITIONS[key]?.label || key);
+  if (labels.length <= 1) return labels[0] || 'leaderboard';
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`;
 }
 
 function sanitizeInitials(value) {

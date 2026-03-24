@@ -4,18 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tap Flash</title>
-    <meta name="description" content="Tap Flash is a fast reaction game from Goji: wait for the flash, tap instantly, and chase the daily top 10 leaderboard." />
+    <meta name="description" content="Tap Flash is a fast reaction game from Goji: wait for the flash, tap instantly, and chase live daily, weekly, and all-time leaderboards." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Tap Flash" />
-    <meta property="og:description" content="Wait for the flash, tap fast, and climb the daily leaderboard in this minimalist reaction game from Goji." />
-    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260324-1426" />
+    <meta property="og:description" content="Wait for the flash, tap fast, and climb the live daily, weekly, and all-time leaderboards in this minimalist reaction game from Goji." />
+    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260324-1558" />
     <meta property="og:image:alt" content="Tap Flash social preview card" />
     <meta property="og:url" content="https://tap-flash-web-production.up.railway.app/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Tap Flash" />
-    <meta name="twitter:description" content="Wait for the flash, tap fast, and chase the daily top 10 leaderboard." />
-    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260324-1426" />
-    <link rel="stylesheet" href="/styles.css?v=20260324-1426" />
+    <meta name="twitter:description" content="Wait for the flash, tap fast, and chase live daily, weekly, and all-time leaderboards." />
+    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260324-1558" />
+    <link rel="stylesheet" href="/styles.css?v=20260324-1558" />
   </head>
   <body>
     <main class="app shell">
@@ -62,17 +62,46 @@
       <section class="panel leaderboard-panel" id="leaderboardSection" aria-labelledby="leaderboardTitle">
         <div class="leaderboard-header">
           <div>
-            <p class="label">Daily leaderboard</p>
-            <h3 id="leaderboardTitle">Top 10 for <span id="leaderboardDate"></span></h3>
+            <p class="label">Persistent live leaderboards</p>
+            <h3 id="leaderboardTitle">Daily, weekly, and all-time</h3>
           </div>
-          <p class="subtle">3-letter names. Only qualifying scores get in.</p>
+          <p class="subtle">Scores now stay live across redeploys. 3-letter names. Only qualifying runs get in.</p>
         </div>
 
-        <p id="leaderboardEmpty" class="helper-text">No scores yet today. Be the first.</p>
-        <ol id="leaderboardList" class="leaderboard-list hidden"></ol>
+        <div class="leaderboard-grid">
+          <article class="leaderboard-board">
+            <div class="board-head">
+              <p class="label">Daily</p>
+              <h4>Last 24 hours</h4>
+            </div>
+            <p id="dailyLeaderboardEmpty" class="helper-text">No scores in the last 24 hours yet. Be the first.</p>
+            <ol id="dailyLeaderboardList" class="leaderboard-list hidden"></ol>
+          </article>
+
+          <article class="leaderboard-board">
+            <div class="board-head">
+              <p class="label">Weekly</p>
+              <h4>Last 7 days</h4>
+            </div>
+            <p id="weeklyLeaderboardEmpty" class="helper-text">No scores in the last 7 days yet. Set the pace.</p>
+            <ol id="weeklyLeaderboardList" class="leaderboard-list hidden"></ol>
+          </article>
+
+          <article class="leaderboard-board">
+            <div class="board-head">
+              <p class="label">All-time</p>
+              <h4>Best ever</h4>
+            </div>
+            <p id="allTimeLeaderboardEmpty" class="helper-text">No all-time scores yet. Make history.</p>
+            <ol id="allTimeLeaderboardList" class="leaderboard-list hidden"></ol>
+          </article>
+        </div>
 
         <form id="leaderboardForm" class="leaderboard-form hidden">
-          <label for="initialsInput">Add your 3-letter name for <strong id="qualifyingScore"></strong></label>
+          <label for="initialsInput">
+            Add your 3-letter name for <strong id="qualifyingScore"></strong>
+            <span id="qualifyingBoards" class="form-meta"></span>
+          </label>
           <div class="leaderboard-form-row">
             <input
               id="initialsInput"
@@ -97,7 +126,7 @@
           <li>Wait through the dark phase.</li>
           <li>When the arena flashes, tap as fast as you can.</li>
           <li>Finish all 5 rounds to get your average.</li>
-          <li>If your score reaches today’s top 10, add your 3-letter name.</li>
+          <li>If your score cracks a live board, add your 3-letter name.</li>
         </ol>
       </section>
 
@@ -106,6 +135,6 @@
       </footer>
     </main>
 
-    <script src="/app.js?v=20260324-1426"></script>
+    <script src="/app.js?v=20260324-1558"></script>
   </body>
 </html>
