@@ -55,6 +55,18 @@ Primary live deployment now uses:
 ./scripts/push-deploy.sh
 ```
 
+This now does two things:
+1. pushes the selected branch to GitHub
+2. waits until the live Railway site matches the local `public/index.html`, `public/app.js`, and `public/styles.css`
+
+If Railway is stale, slow, or serving the wrong build, the script exits non-zero instead of pretending deploy succeeded.
+
+### Verify the live site without pushing
+
+```bash
+node scripts/deploy-and-verify.js --no-push
+```
+
 Railway autodeploys from the GitHub repo after the push lands on `main`.
 
 The old local Node server + tunnel path is now just a fallback/debug path, not the primary public home.
