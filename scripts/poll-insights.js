@@ -7,6 +7,7 @@ const repoRoot = path.resolve(__dirname, '..');
 const stateDir = path.join(repoRoot, '.state');
 const statePath = path.join(stateDir, 'agent-insights-state.json');
 const configPath = process.env.VCL_CONFIG_PATH || path.join(process.env.HOME || '', '.openclaw', 'workspace', '.openclaw', 'tap-flash-vcl.json');
+const MAX_ITEMS_PER_MESSAGE = Number(process.env.VCL_MAX_ITEMS_PER_MESSAGE || 5);
 
 function readJson(filePath, fallback = null) {
   try {
@@ -58,13 +59,28 @@ function httpsJson(url, headers) {
   });
 }
 
-function toMessage(result) {
-  if (!result.newCount) return 'NO_NEW_FEEDBACK';
+function mergePending(existingPending, findings) {
+  const byKey = new Map();
+  for (const item of existingPending || []) {
+    byKey.set(item.key, item);
+  }
+  for (const item of findings) {
+    byKey.set(item.key, item);
+  }
+  return Array.from(byKey.values()).sort((a, b) => {
+    const left = a.createdAt || '';
+    const right = b.createdAt || '';
+    return left.localeCompare(right);
+  });
+}
+
+function toMessage(items) {
+  if (!items.length) return 'NO_NEW_FEEDBACK';
 
   const lines = [
-    'New VCL feedback for Tap Flash.',
+    items.length === 1 ? 'Pending VCL feedback for Tap Flash.' : 'Pending VCL feedback for Tap Flash.',
     '',
-    ...result.newFindings.flatMap((item, index) => {
+    ...items.flatMap((item, index) => {
       const block = [
         `${index + 1}. [${item.sourceType}] id=${item.sourceId} · ${item.createdAt || 'unknown time'}`,
         item.text || '(no text)'
@@ -88,25 +104,37 @@ function toMessage(result) {
     process.exit(1);
   }
 
-  const state = readJson(statePath, { seenKeys: [], history: [] });
+  const state = readJson(statePath, {
+    ackedKeys: [],
+    pendingFindings: [],
+    history: []
+  });
+
   const payload = await httpsJson(config.url, {
-    'Accept': 'application/json',
+    Accept: 'application/json',
     'x-project-api-key': config.apiKey,
     'User-Agent': 'goji-tap-flash-poller'
   });
 
   const findings = (payload.findings || []).map(normalizeFinding);
-  const seen = new Set(state.seenKeys || []);
-  const newFindings = findings.filter((item) => !seen.has(item.key));
+  const acked = new Set((state.ackedKeys || state.seenKeys || []).slice(-500));
+  const currentPending = (state.pendingFindings || []).filter((item) => item && !acked.has(item.key));
+  const pendingFromFeed = findings.filter((item) => !acked.has(item.key));
+  const pendingFindings = mergePending(currentPending, pendingFromFeed);
+  const surfacedFindings = pendingFindings.slice(0, MAX_ITEMS_PER_MESSAGE);
+  const brandNewFindings = findings.filter((item) => !acked.has(item.key) && !currentPending.some((pending) => pending.key === item.key));
 
   const nextState = {
-    seenKeys: Array.from(new Set([...seen, ...findings.map((item) => item.key)])).slice(-500),
+    ackedKeys: Array.from(acked).slice(-500),
+    pendingFindings: pendingFindings.slice(-100),
     history: [
       ...(state.history || []),
       {
         checkedAt: new Date().toISOString(),
         totalFindings: findings.length,
-        newFindingKeys: newFindings.map((item) => item.key)
+        pendingKeys: pendingFindings.map((item) => item.key),
+        surfacedKeys: surfacedFindings.map((item) => item.key),
+        brandNewKeys: brandNewFindings.map((item) => item.key)
       }
     ].slice(-200)
   };
@@ -117,14 +145,17 @@ function toMessage(result) {
     checkedAt: new Date().toISOString(),
     projectId: payload.projectId || null,
     totalFindings: findings.length,
-    newCount: newFindings.length,
-    newFindings,
+    pendingCount: pendingFindings.length,
+    surfacedCount: surfacedFindings.length,
+    brandNewCount: brandNewFindings.length,
+    pendingFindings,
+    surfacedFindings,
     statePath,
     sourceBreakdown: payload.sourceBreakdown || null
   };
 
   if (process.argv.includes('--message')) {
-    process.stdout.write(toMessage(result));
+    process.stdout.write(toMessage(surfacedFindings));
     return;
   }
 
