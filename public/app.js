@@ -1,6 +1,7 @@
 const TOTAL_ROUNDS = 5;
 const STORAGE_KEY = 'tap-flash-best-average';
 const LEADERBOARD_LIMIT = 10;
+const EARLY_CLICK_PENALTY_MS = 100;
 
 const BOARD_DEFINITIONS = {
   daily: {
@@ -29,6 +30,7 @@ const statusMessage = document.getElementById('statusMessage');
 const roundDisplay = document.getElementById('roundDisplay');
 const averageDisplay = document.getElementById('averageDisplay');
 const bestDisplay = document.getElementById('bestDisplay');
+const penaltyDisplay = document.getElementById('penaltyDisplay');
 const lastResult = document.getElementById('lastResult');
 const leaderboardForm = document.getElementById('leaderboardForm');
 const initialsInput = document.getElementById('initialsInput');
@@ -62,6 +64,7 @@ const state = {
   reactionStart: 0,
   timeoutId: null,
   scores: [],
+  penaltyTotal: 0,
   bestAverage: loadBestAverage(),
   leaderboards: emptyLeaderboardPayload(),
   pendingEntry: null,
@@ -69,6 +72,7 @@ const state = {
 };
 
 updateBestDisplay();
+updatePenaltyDisplay();
 renderLeaderboards();
 refreshLeaderboard();
 setArenaState('idle', 'Start game');
@@ -91,10 +95,12 @@ function handleArenaClick() {
   if (state.phase === 'waiting') {
     clearTimeout(state.timeoutId);
     state.timeoutId = null;
+    state.penaltyTotal += EARLY_CLICK_PENALTY_MS;
+    updatePenaltyDisplay();
     playTone('early');
     setArenaState('too-soon', 'Too soon');
-    statusMessage.textContent = 'Too early. That round restarts.';
-    lastResult.textContent = 'Jumped the flash. Stay cooler next round.';
+    statusMessage.textContent = `Too early. +${EARLY_CLICK_PENALTY_MS} ms penalty.`;
+    lastResult.textContent = `Early click penalty applied. Total penalties: +${state.penaltyTotal} ms.`;
     window.setTimeout(beginRound, 850);
     return;
   }
@@ -140,7 +146,7 @@ function recordReaction(reaction) {
 
   const rounded = Math.round(reaction);
   lastResult.textContent = `Round ${state.round}: ${rounded} ms`;
-  averageDisplay.textContent = `${Math.round(getAverage(state.scores))} ms`;
+  averageDisplay.textContent = `${Math.round(getScoreAverage())} ms`;
   statusMessage.textContent = state.scores.length === TOTAL_ROUNDS
     ? 'Run complete.'
     : 'Nice. Tap to start the next round.';
@@ -152,7 +158,7 @@ function recordReaction(reaction) {
 }
 
 async function finishGame() {
-  const average = Math.round(getAverage(state.scores));
+  const average = Math.round(getScoreAverage());
   state.phase = 'finished';
   state.pendingEntry = null;
   statusMessage.textContent = average < 260
@@ -162,7 +168,9 @@ async function finishGame() {
       : 'Solid run.';
 
   averageDisplay.textContent = `${average} ms`;
-  lastResult.textContent = `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds.`;
+  lastResult.textContent = state.penaltyTotal > 0
+    ? `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds, including +${state.penaltyTotal} ms in penalties.`
+    : `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds.`;
   setArenaState('idle', 'Play again');
   restartButton.classList.remove('hidden');
 
@@ -182,9 +190,11 @@ function resetGame() {
   state.timeoutId = null;
   state.reactionStart = 0;
   state.scores = [];
+  state.penaltyTotal = 0;
   state.pendingEntry = null;
   roundDisplay.textContent = `0 / ${TOTAL_ROUNDS}`;
   averageDisplay.textContent = '—';
+  updatePenaltyDisplay();
   statusMessage.textContent = 'Press start when you\'re ready.';
   lastResult.textContent = 'No rounds played yet.';
   restartButton.classList.add('hidden');
@@ -205,6 +215,11 @@ function getAverage(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function getScoreAverage() {
+  if (!state.scores.length) return 0;
+  return getAverage(state.scores) + state.penaltyTotal;
+}
+
 function loadBestAverage() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
@@ -214,6 +229,10 @@ function loadBestAverage() {
 
 function updateBestDisplay() {
   bestDisplay.textContent = state.bestAverage === null ? '—' : `${state.bestAverage} ms`;
+}
+
+function updatePenaltyDisplay() {
+  penaltyDisplay.textContent = `+${state.penaltyTotal} ms`;
 }
 
 function emptyLeaderboardPayload() {
