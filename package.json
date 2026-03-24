@@ -5,7 +5,8 @@
   "description": "A minimal browser reaction game built by Goji",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy": "./scripts/push-deploy.sh"
   },
   "engines": {
     "node": ">=18"

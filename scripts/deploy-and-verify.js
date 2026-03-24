@@ -12,7 +12,7 @@ loadEnvFile(deployEnvPath);
 
 const liveUrl = process.env.LIVE_URL || 'https://tap-flash-web-production.up.railway.app';
 const branch = process.env.BRANCH || process.argv.find(arg => arg.startsWith('--branch='))?.split('=')[1] || 'main';
-const timeoutMs = Number(process.env.DEPLOY_TIMEOUT_MS || process.argv.find(arg => arg.startsWith('--timeout-ms='))?.split('=')[1] || 300000);
+const timeoutMs = Number(process.env.DEPLOY_TIMEOUT_MS || process.argv.find(arg => arg.startsWith('--timeout-ms='))?.split('=')[1] || 600000);
 const intervalMs = Number(process.env.DEPLOY_POLL_MS || process.argv.find(arg => arg.startsWith('--poll-ms='))?.split('=')[1] || 10000);
 const pushEnabled = !process.argv.includes('--no-push');
 const triggerEnabled = !process.argv.includes('--no-trigger');
@@ -62,7 +62,7 @@ async function fetchText(url) {
   const res = await fetch(url, {
     headers: {
       'cache-control': 'no-cache',
-      'pragma': 'no-cache'
+      pragma: 'no-cache'
     }
   });
   if (!res.ok) {
@@ -118,55 +118,106 @@ function hasRailwayConfig() {
 }
 
 async function triggerRailwayDeploy() {
-  console.log('Triggering Railway deploy directly...');
+  console.log('Triggering Railway deploy from latest GitHub commit...');
   const data = await railwayGraphQL(
-    `mutation serviceInstanceDeployV2($serviceId: String!, $environmentId: String!) {
-      serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+    `mutation serviceInstanceDeploy($serviceId: String!, $environmentId: String!, $latestCommit: Boolean) {
+      serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId, latestCommit: $latestCommit)
     }`,
     {
       serviceId: railwayConfig.serviceId,
-      environmentId: railwayConfig.environmentId
+      environmentId: railwayConfig.environmentId,
+      latestCommit: true
     }
   );
 
-  const deploymentId = data.serviceInstanceDeployV2;
-  console.log(`Railway deployment id: ${deploymentId}`);
-  return deploymentId;
+  if (!data.serviceInstanceDeploy) {
+    throw new Error('Railway did not accept the deploy trigger request');
+  }
 }
 
-async function waitForRailwayDeployment(deploymentId) {
-  const started = Date.now();
-  let lastStatus = null;
-
-  while (Date.now() - started < timeoutMs) {
-    const data = await railwayGraphQL(
-      `query deployment($id: String!) {
-        deployment(id: $id) {
-          id
-          status
-          createdAt
-          meta
+async function latestDeployment() {
+  const data = await railwayGraphQL(
+    `query project($id: String!) {
+      project(id: $id) {
+        services {
+          edges {
+            node {
+              id
+              name
+              serviceInstances {
+                edges {
+                  node {
+                    id
+                    environmentId
+                    latestDeployment {
+                      id
+                      status
+                      createdAt
+                      meta
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
-      }`,
-      { id: deploymentId }
-    );
+      }
+    }`,
+    { id: railwayConfig.projectId }
+  );
 
-    const deployment = data.deployment;
-    const commitHash = deployment.meta?.commitHash || 'unknown';
-    if (deployment.status !== lastStatus) {
-      console.log(`[railway] status=${deployment.status} commit=${commitHash}`);
-      lastStatus = deployment.status;
-    }
+  const service = data.project.services.edges
+    .map(edge => edge.node)
+    .find(node => node.id === railwayConfig.serviceId);
+  const instance = service?.serviceInstances?.edges
+    ?.map(edge => edge.node)
+    .find(node => node.environmentId === railwayConfig.environmentId);
 
-    if (deployment.status === 'SUCCESS') return deployment;
-    if (['FAILED', 'CRASHED', 'REMOVED', 'SKIPPED'].includes(deployment.status)) {
-      throw new Error(`Railway deployment ${deploymentId} ended with status ${deployment.status}`);
-    }
-
-    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  if (!instance?.latestDeployment) {
+    throw new Error('Could not find the latest Railway deployment for the configured service/environment');
   }
 
-  throw new Error(`Timed out waiting for Railway deployment ${deploymentId}`);
+  return instance.latestDeployment;
+}
+
+async function waitForRailwayDeployment(expectedCommit, previousDeploymentId) {
+  const started = Date.now();
+  let lastLabel = null;
+
+  while (Date.now() - started < timeoutMs) {
+    const deployment = await latestDeployment();
+    const commitHash = deployment.meta?.commitHash || 'unknown';
+    const label = `${deployment.id}:${deployment.status}:${commitHash}`;
+
+    if (label !== lastLabel) {
+      console.log(`[railway] id=${deployment.id} status=${deployment.status} commit=${commitHash}`);
+      lastLabel = label;
+    }
+
+    if (deployment.id === previousDeploymentId) {
+      await sleep(intervalMs);
+      continue;
+    }
+
+    if (deployment.status === 'SUCCESS') {
+      if (commitHash !== expectedCommit) {
+        throw new Error(`Railway deployed ${commitHash} instead of expected ${expectedCommit}`);
+      }
+      return deployment;
+    }
+
+    if (['FAILED', 'CRASHED', 'REMOVED', 'SKIPPED'].includes(deployment.status)) {
+      throw new Error(`Railway deployment ${deployment.id} ended with status ${deployment.status}`);
+    }
+
+    await sleep(intervalMs);
+  }
+
+  throw new Error(`Timed out waiting for Railway deployment of ${expectedCommit}`);
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function checkOnce() {
@@ -214,25 +265,11 @@ async function main() {
   console.log(`Expected commit: ${expectedCommit}`);
 
   if (triggerEnabled && hasRailwayConfig()) {
-    let deployment = null;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      const deploymentId = await triggerRailwayDeploy();
-      deployment = await waitForRailwayDeployment(deploymentId);
-      const deployedCommit = deployment.meta?.commitHash;
-      if (deployedCommit === expectedCommit) {
-        console.log(`[railway] deployed expected commit on attempt ${attempt}`);
-        break;
-      }
-
-      if (attempt === 3) {
-        throw new Error(`Railway deployed ${deployedCommit || 'unknown'} instead of expected ${expectedCommit}`);
-      }
-
-      console.log(`[railway] deployed ${deployedCommit || 'unknown'} instead of ${expectedCommit}; retrying after propagation delay...`);
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
-    }
+    const before = await latestDeployment();
+    await triggerRailwayDeploy();
+    await waitForRailwayDeployment(expectedCommit, before.id);
   } else if (triggerEnabled) {
-    console.log('Railway direct-trigger config not found; falling back to GitHub autodeploy detection.');
+    console.log('Railway direct-trigger config not found; skipping trigger and only verifying the live site.');
   }
 
   console.log('Waiting for live site to match local files...');
@@ -258,7 +295,7 @@ async function main() {
       console.log(`[check] ${error.message}`);
     }
 
-    await new Promise(resolve => setTimeout(resolve, intervalMs));
+    await sleep(intervalMs);
   }
 
   console.error('Deployment verification timed out.');

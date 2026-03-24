@@ -57,22 +57,28 @@ Primary live deployment now uses:
 
 This now does three things:
 1. pushes the selected branch to GitHub
-2. if local Railway API config is available, triggers the Railway deploy directly
+2. tells Railway to deploy the latest GitHub commit for the configured service/environment
 3. waits until the live Railway site matches the local `public/index.html`, `public/app.js`, and `public/styles.css`
 
-If Railway is stale, slow, or serving the wrong build, the script exits non-zero instead of pretending deploy succeeded.
+If Railway stalls, fails, or serves the wrong build, the script exits non-zero instead of pretending deploy succeeded.
 
-### Local Railway deploy config
+### Local deploy config
 
-Create a local `.env.deploy` file (gitignored) when you want deploys to trigger Railway directly instead of relying only on GitHub webhooks:
+Create a local `.env.deploy` file (gitignored) when you want local scripts to know which Railway project/service to deploy and which live URL to verify:
 
 ```bash
 RAILWAY_TOKEN=...
 RAILWAY_PROJECT_ID=20d489a8-bdc0-4245-a073-59d55d047710
 RAILWAY_ENVIRONMENT_ID=7e54c4df-7f49-4ff5-b3c6-17f4bb337f8b
 RAILWAY_SERVICE_ID=a382d470-26ee-45a7-aaff-5a225bce41c1
+RAILWAY_SERVICE_NAME=tap-flash-web
+RAILWAY_ENVIRONMENT_NAME=production
 LIVE_URL=https://tap-flash-web-production.up.railway.app
 ```
+
+### Local Railway API config
+
+The deploy script uses Railway's GraphQL API with the local `.env.deploy` token/project/service/environment IDs. The important detail is that it now calls the mutation that asks Railway for the **latest GitHub commit**, instead of redeploying the previously cached deployment.
 
 ### Verify the live site without pushing
 
