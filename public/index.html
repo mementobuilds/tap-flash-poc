@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tap Flash</title>
     <meta name="description" content="Tap Flash is a minimal reaction game built by Goji." />
-    <link rel="stylesheet" href="/styles.css?v=20260323-2227" />
+    <link rel="stylesheet" href="/styles.css?v=20260324-1010" />
   </head>
   <body>
     <main class="app shell">
@@ -49,6 +49,37 @@
         </div>
       </section>
 
+      <section class="panel leaderboard-panel" id="leaderboardSection" aria-labelledby="leaderboardTitle">
+        <div class="leaderboard-header">
+          <div>
+            <p class="label">Daily leaderboard</p>
+            <h3 id="leaderboardTitle">Top 10 for <span id="leaderboardDate"></span></h3>
+          </div>
+          <p class="subtle">3-letter names. Only qualifying scores get in.</p>
+        </div>
+
+        <p id="leaderboardEmpty" class="helper-text">No scores yet today. Be the first.</p>
+        <ol id="leaderboardList" class="leaderboard-list hidden"></ol>
+
+        <form id="leaderboardForm" class="leaderboard-form hidden">
+          <label for="initialsInput">Add your 3-letter name for <strong id="qualifyingScore"></strong></label>
+          <div class="leaderboard-form-row">
+            <input
+              id="initialsInput"
+              name="initials"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              maxlength="3"
+              placeholder="GOJ"
+              aria-label="3-letter leaderboard name"
+            />
+            <button type="submit" class="ghost-button">Save score</button>
+          </div>
+          <p id="leaderboardMessage" class="helper-text"></p>
+        </form>
+      </section>
+
       <section class="panel instructions">
         <h3>How it works</h3>
         <ol>
@@ -56,6 +87,7 @@
           <li>Wait through the dark phase.</li>
           <li>When the arena flashes, tap as fast as you can.</li>
           <li>Finish all 5 rounds to get your average.</li>
+          <li>If your score reaches today’s top 10, add your 3-letter name.</li>
         </ol>
       </section>
 
@@ -64,6 +96,6 @@
       </footer>
     </main>
 
-    <script src="/app.js?v=20260323-2227"></script>
+    <script src="/app.js?v=20260324-1010"></script>
   </body>
 </html>
