@@ -79,6 +79,13 @@ function pushBranch() {
   });
 }
 
+function currentHead() {
+  return execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8'
+  }).trim();
+}
+
 async function railwayGraphQL(query, variables = {}) {
   const res = await fetch('https://backboard.railway.com/graphql/v2', {
     method: 'POST',
@@ -203,9 +210,27 @@ async function checkOnce() {
 async function main() {
   if (pushEnabled) pushBranch();
 
+  const expectedCommit = currentHead();
+  console.log(`Expected commit: ${expectedCommit}`);
+
   if (triggerEnabled && hasRailwayConfig()) {
-    const deploymentId = await triggerRailwayDeploy();
-    await waitForRailwayDeployment(deploymentId);
+    let deployment = null;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const deploymentId = await triggerRailwayDeploy();
+      deployment = await waitForRailwayDeployment(deploymentId);
+      const deployedCommit = deployment.meta?.commitHash;
+      if (deployedCommit === expectedCommit) {
+        console.log(`[railway] deployed expected commit on attempt ${attempt}`);
+        break;
+      }
+
+      if (attempt === 3) {
+        throw new Error(`Railway deployed ${deployedCommit || 'unknown'} instead of expected ${expectedCommit}`);
+      }
+
+      console.log(`[railway] deployed ${deployedCommit || 'unknown'} instead of ${expectedCommit}; retrying after propagation delay...`);
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
   } else if (triggerEnabled) {
     console.log('Railway direct-trigger config not found; falling back to GitHub autodeploy detection.');
   }
