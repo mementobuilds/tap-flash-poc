@@ -1,6 +1,5 @@
 const TOTAL_ROUNDS = 5;
 const STORAGE_KEY = 'tap-flash-best-average';
-const LEADERBOARD_KEY = 'tap-flash-daily-leaderboard';
 const LEADERBOARD_LIMIT = 10;
 
 const arenaButton = document.getElementById('arenaButton');
@@ -10,7 +9,6 @@ const roundDisplay = document.getElementById('roundDisplay');
 const averageDisplay = document.getElementById('averageDisplay');
 const bestDisplay = document.getElementById('bestDisplay');
 const lastResult = document.getElementById('lastResult');
-const leaderboardSection = document.getElementById('leaderboardSection');
 const leaderboardList = document.getElementById('leaderboardList');
 const leaderboardEmpty = document.getElementById('leaderboardEmpty');
 const leaderboardDate = document.getElementById('leaderboardDate');
@@ -31,12 +29,14 @@ const state = {
   timeoutId: null,
   scores: [],
   bestAverage: loadBestAverage(),
-  leaderboard: loadLeaderboard(),
-  pendingEntry: null
+  leaderboard: emptyLeaderboard(),
+  pendingEntry: null,
+  leaderboardLoaded: false
 };
 
 updateBestDisplay();
 renderLeaderboard();
+refreshLeaderboard();
 setArenaState('idle', 'Start game');
 
 arenaButton.addEventListener('click', handleArenaClick);
@@ -117,7 +117,7 @@ function recordReaction(reaction) {
   }
 }
 
-function finishGame() {
+async function finishGame() {
   const average = Math.round(getAverage(state.scores));
   state.phase = 'finished';
   state.pendingEntry = null;
@@ -138,7 +138,7 @@ function finishGame() {
     bestDisplay.textContent = `${average} ms`;
   }
 
-  maybeQualifyForLeaderboard(average);
+  await maybeQualifyForLeaderboard(average);
 }
 
 function resetGame() {
@@ -193,30 +193,25 @@ function formatTodayLabel(key) {
   }).format(date);
 }
 
-function loadLeaderboard() {
-  const key = todayKey();
-  const raw = localStorage.getItem(LEADERBOARD_KEY);
-  if (!raw) {
-    return { date: key, entries: [] };
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.date === key && Array.isArray(parsed.entries)) {
-      return {
-        date: key,
-        entries: parsed.entries
-          .filter((entry) => entry && typeof entry.name === 'string' && Number.isFinite(entry.score))
-          .slice(0, LEADERBOARD_LIMIT)
-      };
-    }
-  } catch {}
-
-  return { date: key, entries: [] };
+function emptyLeaderboard() {
+  return {
+    date: todayKey(),
+    entries: []
+  };
 }
 
-function saveLeaderboard() {
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(state.leaderboard));
+async function refreshLeaderboard() {
+  try {
+    const response = await fetch('/api/leaderboard', {
+      headers: { 'cache-control': 'no-cache' }
+    });
+    if (!response.ok) throw new Error('Could not load leaderboard');
+    state.leaderboard = await response.json();
+    state.leaderboardLoaded = true;
+    renderLeaderboard();
+  } catch {
+    leaderboardMessage.textContent = 'Leaderboard unavailable right now.';
+  }
 }
 
 function renderLeaderboard() {
@@ -247,7 +242,8 @@ function renderLeaderboard() {
   }
 }
 
-function maybeQualifyForLeaderboard(score) {
+async function maybeQualifyForLeaderboard(score) {
+  await refreshLeaderboard();
   const entries = state.leaderboard.entries;
   const cutoff = entries.length < LEADERBOARD_LIMIT ? Infinity : entries[entries.length - 1].score;
 
@@ -255,8 +251,8 @@ function maybeQualifyForLeaderboard(score) {
     state.pendingEntry = { score };
     qualifyingScore.textContent = `${score} ms`;
     leaderboardMessage.textContent = entries.length < LEADERBOARD_LIMIT
-      ? 'New score enters today\'s top 10. Add your 3-letter name.'
-      : `You cracked today\'s top 10. Enter your 3-letter name for ${score} ms.`;
+      ? 'New score enters today\'s shared top 10. Add your 3-letter name.'
+      : `You cracked today\'s shared top 10. Enter your 3-letter name for ${score} ms.`;
     leaderboardForm.classList.remove('hidden');
     initialsInput.value = '';
     initialsInput.focus();
@@ -264,10 +260,10 @@ function maybeQualifyForLeaderboard(score) {
   }
 
   leaderboardForm.classList.add('hidden');
-  leaderboardMessage.textContent = `Score ${score} ms did not reach today\'s top 10.`;
+  leaderboardMessage.textContent = `Score ${score} ms did not reach today\'s shared top 10.`;
 }
 
-function handleLeaderboardSubmit(event) {
+async function handleLeaderboardSubmit(event) {
   event.preventDefault();
   if (!state.pendingEntry) return;
 
@@ -278,20 +274,37 @@ function handleLeaderboardSubmit(event) {
     return;
   }
 
-  state.leaderboard.entries.push({
-    name,
-    score: state.pendingEntry.score,
-    createdAt: new Date().toISOString()
-  });
-  state.leaderboard.entries.sort((a, b) => a.score - b.score);
-  state.leaderboard.entries = state.leaderboard.entries.slice(0, LEADERBOARD_LIMIT);
-  saveLeaderboard();
+  try {
+    const response = await fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        score: state.pendingEntry.score
+      })
+    });
 
-  leaderboardMessage.textContent = `${name} added with ${state.pendingEntry.score} ms.`;
-  leaderboardForm.classList.add('hidden');
-  state.pendingEntry = null;
-  initialsInput.value = '';
-  renderLeaderboard();
+    const payload = await response.json();
+    if (!response.ok) {
+      state.leaderboard = payload.leaderboard || state.leaderboard;
+      renderLeaderboard();
+      leaderboardMessage.textContent = payload.error || 'Could not save score.';
+      state.pendingEntry = null;
+      leaderboardForm.classList.add('hidden');
+      return;
+    }
+
+    state.leaderboard = payload;
+    leaderboardMessage.textContent = `${name} added with ${state.pendingEntry.score} ms.`;
+    leaderboardForm.classList.add('hidden');
+    state.pendingEntry = null;
+    initialsInput.value = '';
+    renderLeaderboard();
+  } catch {
+    leaderboardMessage.textContent = 'Could not save score right now.';
+  }
 }
 
 function sanitizeInitials(value) {
