@@ -150,7 +150,7 @@ function recordReaction(reaction) {
   statusMessage.textContent = state.scores.length === TOTAL_ROUNDS
     ? 'Run complete.'
     : 'Nice. Tap to start the next round.';
-  setArenaState('idle', state.scores.length === TOTAL_ROUNDS ? 'See results' : 'Next round');
+  setArenaState('idle', state.scores.length === TOTAL_ROUNDS ? 'See results' : 'Tap to start next round');
 
   if (state.scores.length === TOTAL_ROUNDS) {
     finishGame();
