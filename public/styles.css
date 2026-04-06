@@ -30,6 +30,14 @@ body.modal-open {
   overflow: hidden;
 }
 
+.celebration-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 40;
+}
+
 .shell {
   width: min(1100px, calc(100% - 2rem));
   margin: 0 auto;
@@ -333,6 +341,32 @@ h4 {
   padding-left: 1.25rem;
   display: grid;
   gap: 0.55rem;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -8vh;
+  width: var(--size, 12px);
+  height: calc(var(--size, 12px) * 1.8);
+  opacity: 0.95;
+  transform: translate3d(0, 0, 0) rotate(0deg);
+  animation: confetti-fall var(--duration, 2.8s) ease-out forwards;
+  animation-delay: var(--delay, 0s);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.15);
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -8vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift, 0px), 110vh, 0) rotate(var(--rotate, 180deg));
+    opacity: 0;
+  }
 }
 
 .modal-backdrop {

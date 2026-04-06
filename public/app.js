@@ -4,6 +4,7 @@ const PLAYER_NAME_KEY = 'tap-flash-player-name-v1';
 const INTRO_SEEN_KEY = 'tap-flash-intro-seen-v1';
 const LEADERBOARD_LIMIT = 10;
 const EARLY_CLICK_PENALTY_MS = 100;
+const CELEBRATION_GOOD_SCORE_MS = 320;
 
 const BOARD_DEFINITIONS = {
   daily: {
@@ -40,6 +41,7 @@ const qualifyingScore = document.getElementById('qualifyingScore');
 const leaderboardMessage = document.getElementById('leaderboardMessage');
 const qualifyingBoards = document.getElementById('qualifyingBoards');
 const saveScoreButton = document.getElementById('saveScoreButton');
+const celebrationLayer = document.getElementById('celebrationLayer');
 const introModal = document.getElementById('introModal');
 const introDismissButton = document.getElementById('introDismissButton');
 const reopenIntroButton = document.getElementById('reopenIntroButton');
@@ -209,6 +211,10 @@ async function finishGame() {
     : `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds.`;
   setArenaState('idle', 'Play again');
   restartButton.classList.remove('hidden');
+
+  if (average <= CELEBRATION_GOOD_SCORE_MS) {
+    celebrate({ intensity: average < 260 ? 'big' : 'medium' });
+  }
 
   if (state.bestAverage === null || average < state.bestAverage) {
     state.bestAverage = average;
@@ -473,6 +479,8 @@ async function submitLeaderboardEntry(name) {
       ? payload.acceptedBoards
       : pending.qualifyingKeys;
 
+    celebrate({ intensity: acceptedBoards.includes('allTime') ? 'big' : 'medium' });
+
     leaderboardMessage.textContent = acceptedBoards.length === 1
       ? `${state.rememberedName} added with ${pending.score} ms to the ${humanizeBoardNames(acceptedBoards)} board.`
       : `${state.rememberedName} added with ${pending.score} ms to the ${humanizeBoardNames(acceptedBoards)} boards.`;
@@ -500,6 +508,29 @@ function humanizeBoardNames(keys) {
 
 function sanitizeInitials(value) {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+}
+
+function celebrate({ intensity = 'medium' } = {}) {
+  const count = intensity === 'big' ? 42 : 26;
+  const colors = ['#7c3aed', '#22c55e', '#f59e0b', '#38bdf8', '#fb7185', '#facc15'];
+
+  for (let index = 0; index < count; index += 1) {
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.setProperty('--drift', `${(Math.random() - 0.5) * 180}px`);
+    piece.style.setProperty('--rotate', `${Math.random() * 720 - 360}deg`);
+    piece.style.setProperty('--duration', `${2.2 + Math.random() * 1.4}s`);
+    piece.style.setProperty('--delay', `${Math.random() * 0.18}s`);
+    piece.style.setProperty('--size', `${8 + Math.random() * 10}px`);
+    piece.style.background = colors[index % colors.length];
+    if (Math.random() > 0.55) {
+      piece.style.borderRadius = '999px';
+    }
+
+    celebrationLayer.appendChild(piece);
+    window.setTimeout(() => piece.remove(), 4200);
+  }
 }
 
 function ensureAudio() {
