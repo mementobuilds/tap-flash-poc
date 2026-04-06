@@ -1,5 +1,6 @@
 const TOTAL_ROUNDS = 5;
 const STORAGE_KEY = 'tap-flash-best-average';
+const PLAYER_NAME_KEY = 'tap-flash-player-name-v1';
 const INTRO_SEEN_KEY = 'tap-flash-intro-seen-v1';
 const LEADERBOARD_LIMIT = 10;
 const EARLY_CLICK_PENALTY_MS = 100;
@@ -38,6 +39,7 @@ const initialsInput = document.getElementById('initialsInput');
 const qualifyingScore = document.getElementById('qualifyingScore');
 const leaderboardMessage = document.getElementById('leaderboardMessage');
 const qualifyingBoards = document.getElementById('qualifyingBoards');
+const saveScoreButton = document.getElementById('saveScoreButton');
 const introModal = document.getElementById('introModal');
 const introDismissButton = document.getElementById('introDismissButton');
 const reopenIntroButton = document.getElementById('reopenIntroButton');
@@ -70,9 +72,12 @@ const state = {
   scores: [],
   penaltyTotal: 0,
   bestAverage: loadBestAverage(),
+  rememberedName: loadRememberedName(),
   leaderboards: emptyLeaderboardPayload(),
   pendingEntry: null,
-  leaderboardLoaded: false
+  leaderboardLoaded: false,
+  isSavingScore: false,
+  runCounter: 0
 };
 
 updateBestDisplay();
@@ -111,7 +116,13 @@ function handleArenaClick() {
 
   ensureAudio();
 
-  if (state.phase === 'idle' || state.phase === 'finished') {
+  if (state.phase === 'finished') {
+    resetGame();
+    beginRound();
+    return;
+  }
+
+  if (state.phase === 'idle') {
     beginRound();
     return;
   }
@@ -184,6 +195,7 @@ function recordReaction(reaction) {
 async function finishGame() {
   const average = Math.round(getScoreAverage());
   state.phase = 'finished';
+  state.runCounter += 1;
   state.pendingEntry = null;
   statusMessage.textContent = average < 260
     ? 'Ridiculously fast.'
@@ -225,7 +237,8 @@ function resetGame() {
   leaderboardForm.classList.add('hidden');
   leaderboardMessage.textContent = '';
   qualifyingBoards.textContent = '';
-  initialsInput.value = '';
+  initialsInput.value = state.rememberedName || '';
+  setSaveState(false);
   setArenaState('idle', 'Start game');
   renderLeaderboards();
 }
@@ -264,12 +277,31 @@ function loadBestAverage() {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function loadRememberedName() {
+  const raw = sessionStorage.getItem(PLAYER_NAME_KEY);
+  const name = sanitizeInitials(raw || '');
+  return name.length === 3 ? name : null;
+}
+
+function rememberName(name) {
+  const sanitized = sanitizeInitials(name);
+  if (sanitized.length !== 3) return;
+  state.rememberedName = sanitized;
+  sessionStorage.setItem(PLAYER_NAME_KEY, sanitized);
+}
+
 function updateBestDisplay() {
   bestDisplay.textContent = state.bestAverage === null ? '—' : `${state.bestAverage} ms`;
 }
 
 function updatePenaltyDisplay() {
   penaltyDisplay.textContent = `+${state.penaltyTotal} ms`;
+}
+
+function setSaveState(isSaving) {
+  state.isSavingScore = isSaving;
+  saveScoreButton.disabled = isSaving;
+  saveScoreButton.textContent = isSaving ? 'Saving…' : 'Save score';
 }
 
 function emptyLeaderboardPayload() {
@@ -361,14 +393,26 @@ async function maybeQualifyForLeaderboard(score) {
     .filter((key) => scoreQualifies(score, state.leaderboards.leaderboards[key]?.entries || []));
 
   if (qualifyingKeys.length) {
-    state.pendingEntry = { score, qualifyingKeys };
+    state.pendingEntry = {
+      score,
+      qualifyingKeys,
+      runId: state.runCounter,
+      submitted: false
+    };
+
+    if (state.rememberedName) {
+      leaderboardMessage.textContent = `Using remembered name ${state.rememberedName} for this score.`;
+      await submitLeaderboardEntry(state.rememberedName);
+      return;
+    }
+
     qualifyingScore.textContent = `${score} ms`;
     qualifyingBoards.textContent = humanizeBoardNames(qualifyingKeys);
     leaderboardMessage.textContent = qualifyingKeys.length === 1
       ? `You cracked the ${humanizeBoardNames(qualifyingKeys)} board. Add your 3-letter name.`
       : `You landed on the ${humanizeBoardNames(qualifyingKeys)} boards. Add your 3-letter name.`;
     leaderboardForm.classList.remove('hidden');
-    initialsInput.value = '';
+    initialsInput.value = state.rememberedName || '';
     initialsInput.focus();
     return;
   }
@@ -389,6 +433,16 @@ async function handleLeaderboardSubmit(event) {
     return;
   }
 
+  await submitLeaderboardEntry(name);
+}
+
+async function submitLeaderboardEntry(name) {
+  if (!state.pendingEntry || state.isSavingScore || state.pendingEntry.submitted) return;
+
+  const pending = state.pendingEntry;
+  pending.submitted = true;
+  setSaveState(true);
+
   try {
     const response = await fetch('/api/leaderboard', {
       method: 'POST',
@@ -397,7 +451,7 @@ async function handleLeaderboardSubmit(event) {
       },
       body: JSON.stringify({
         name,
-        score: state.pendingEntry.score
+        score: pending.score
       })
     });
 
@@ -413,20 +467,27 @@ async function handleLeaderboardSubmit(event) {
       return;
     }
 
+    rememberName(name);
+
     const acceptedBoards = Array.isArray(payload.acceptedBoards) && payload.acceptedBoards.length
       ? payload.acceptedBoards
-      : state.pendingEntry.qualifyingKeys;
+      : pending.qualifyingKeys;
 
     leaderboardMessage.textContent = acceptedBoards.length === 1
-      ? `${name} added with ${state.pendingEntry.score} ms to the ${humanizeBoardNames(acceptedBoards)} board.`
-      : `${name} added with ${state.pendingEntry.score} ms to the ${humanizeBoardNames(acceptedBoards)} boards.`;
+      ? `${state.rememberedName} added with ${pending.score} ms to the ${humanizeBoardNames(acceptedBoards)} board.`
+      : `${state.rememberedName} added with ${pending.score} ms to the ${humanizeBoardNames(acceptedBoards)} boards.`;
     leaderboardForm.classList.add('hidden');
     state.pendingEntry = null;
     qualifyingBoards.textContent = '';
-    initialsInput.value = '';
+    initialsInput.value = state.rememberedName || '';
     renderLeaderboards();
   } catch {
+    if (state.pendingEntry === pending) {
+      pending.submitted = false;
+    }
     leaderboardMessage.textContent = 'Could not save score right now.';
+  } finally {
+    setSaveState(false);
   }
 }
 
