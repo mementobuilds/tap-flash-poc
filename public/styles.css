@@ -108,6 +108,16 @@ h4 {
 
 .hero-actions {
   margin-top: 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.project-link-button {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stats-grid {
@@ -296,6 +306,10 @@ h4 {
   text-align: center;
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.site-footer a {
+  color: var(--text);
 }
 
 .instructions {
