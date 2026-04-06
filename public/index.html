@@ -4,18 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tap Flash</title>
-    <meta name="description" content="Tap Flash is a self-improving reaction game from Goji: wait for the flash, tap instantly, and watch the game evolve from real player feedback." />
+    <meta name="description" content="Tap Flash is a tiny browser reaction game that improves itself from real user feedback through a live build → feedback → iterate loop." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Tap Flash" />
-    <meta property="og:description" content="A self-improving reaction game: tap fast, chase the leaderboards, and help shape the next version with your feedback." />
-    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260406-1059" />
+    <meta property="og:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
+    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260406-1108" />
     <meta property="og:image:alt" content="Tap Flash social preview card" />
     <meta property="og:url" content="https://tap-flash-web-production.up.railway.app/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Tap Flash" />
-    <meta name="twitter:description" content="A self-improving reaction game: tap fast, chase the leaderboards, and help shape the next version with your feedback." />
-    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260406-1059" />
-    <link rel="stylesheet" href="/styles.css?v=20260406-1059" />
+    <meta name="twitter:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
+    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260406-1108" />
+    <link rel="stylesheet" href="/styles.css?v=20260406-1108" />
   </head>
   <body>
     <div id="introModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="introTitle">
@@ -23,8 +23,9 @@
         <p class="label">Welcome</p>
         <h2 id="introTitle">What is Tap Flash?</h2>
         <p class="subtle">
-          Tap Flash is a tiny reaction game with a live improvement loop. You play five rounds, try to post a fast average,
-          and the game gets refined from real player feedback over time.
+          Tap Flash is a tiny browser reaction game, but the real point is the loop behind it.
+          Players leave feedback, the Tap Flash Pi Agent reads it, Joe approves changes, the agent implements them,
+          and the game redeploys.
         </p>
         <div class="intro-points">
           <div>
@@ -33,7 +34,7 @@
           </div>
           <div>
             <strong>Why it exists</strong>
-            <p class="helper-text">This is a self-improving product experiment: people play it, leave insights, and Goji ships updates.</p>
+            <p class="helper-text">The goal is to prove an AI agent can participate in a real build → feedback → iterate loop on a live product, not just make a reaction game.</p>
           </div>
         </div>
         <div class="modal-actions">
@@ -45,7 +46,7 @@
     <main class="app shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Goji × VCL POC</p>
+          <p class="eyebrow">Tap Flash Pi Agent × VCL POC</p>
           <h1>Tap Flash</h1>
         </div>
       </header>
@@ -55,7 +56,7 @@
           <p class="label">Self-improving reaction game</p>
           <h2>Wait for the flash. Then tap fast.</h2>
           <p class="subtle">
-            Five rounds. One rule. Don’t click early. Then help shape what changes next.
+            This is a tiny browser reaction game wrapped around a real continuous product loop: feedback comes in, the Tap Flash Pi Agent reads it, Joe approves changes, and the live game updates.
           </p>
           <div class="hero-actions">
             <button id="reopenIntroButton" class="ghost-button" type="button">What is this?</button>
@@ -87,7 +88,7 @@
             <p class="label">Start here</p>
             <h3>How Tap Flash works</h3>
           </div>
-          <p class="subtle">Play the game, chase the boards, then feed the loop.</p>
+          <p class="subtle">Play it, break it, leave feedback, and watch the next version land.</p>
         </div>
         <ol>
           <li>Tap <strong>Start game</strong>.</li>
@@ -96,7 +97,7 @@
           <li>Early clicks add a +100 ms penalty.</li>
           <li>Finish all 5 rounds to get your average.</li>
           <li>If your score cracks a live board, add your 3-letter name.</li>
-          <li>This game is part of a continuous product loop: real feedback comes in, Goji ships updates, and the experience evolves.</li>
+          <li>This game is part of a continuous product loop: users leave feedback, the Tap Flash Pi Agent reads it, Joe approves changes, and new versions get shipped live.</li>
         </ol>
       </section>
 
@@ -170,10 +171,10 @@
       </section>
 
       <footer class="site-footer">
-        Built by Goji on a Raspberry Pi 5.
+        Built by the Tap Flash Pi Agent on a Raspberry Pi 5.
       </footer>
     </main>
 
-    <script src="/app.js?v=20260406-1059"></script>
+    <script src="/app.js?v=20260406-1108"></script>
   </body>
 </html>
