@@ -1,5 +1,6 @@
 const TOTAL_ROUNDS = 5;
 const STORAGE_KEY = 'tap-flash-best-average';
+const INTRO_SEEN_KEY = 'tap-flash-intro-seen-v1';
 const LEADERBOARD_LIMIT = 10;
 const EARLY_CLICK_PENALTY_MS = 100;
 
@@ -37,6 +38,9 @@ const initialsInput = document.getElementById('initialsInput');
 const qualifyingScore = document.getElementById('qualifyingScore');
 const leaderboardMessage = document.getElementById('leaderboardMessage');
 const qualifyingBoards = document.getElementById('qualifyingBoards');
+const introModal = document.getElementById('introModal');
+const introDismissButton = document.getElementById('introDismissButton');
+const reopenIntroButton = document.getElementById('reopenIntroButton');
 
 const boardElements = {
   daily: {
@@ -83,8 +87,28 @@ leaderboardForm.addEventListener('submit', handleLeaderboardSubmit);
 initialsInput.addEventListener('input', () => {
   initialsInput.value = sanitizeInitials(initialsInput.value);
 });
+introDismissButton.addEventListener('click', () => dismissIntro(true));
+reopenIntroButton.addEventListener('click', () => showIntro());
+introModal.addEventListener('click', (event) => {
+  if (event.target === introModal) {
+    dismissIntro(true);
+  }
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !introModal.classList.contains('hidden')) {
+    dismissIntro(true);
+  }
+});
+
+if (!localStorage.getItem(INTRO_SEEN_KEY)) {
+  showIntro();
+}
 
 function handleArenaClick() {
+  if (!introModal.classList.contains('hidden')) {
+    dismissIntro(true);
+  }
+
   ensureAudio();
 
   if (state.phase === 'idle' || state.phase === 'finished') {
@@ -209,6 +233,19 @@ function resetGame() {
 function setArenaState(phase, label) {
   arenaButton.className = `arena ${phase}`;
   arenaButton.textContent = label;
+}
+
+function showIntro() {
+  introModal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function dismissIntro(markSeen = false) {
+  introModal.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+  if (markSeen) {
+    localStorage.setItem(INTRO_SEEN_KEY, '1');
+  }
 }
 
 function getAverage(values) {

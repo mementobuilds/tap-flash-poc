@@ -26,6 +26,10 @@ body {
   color: var(--text);
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 .shell {
   width: min(1100px, calc(100% - 2rem));
   margin: 0 auto;
@@ -100,6 +104,10 @@ h4 {
   flex-direction: column;
   gap: 0.7rem;
   justify-content: center;
+}
+
+.hero-actions {
+  margin-top: 0.35rem;
 }
 
 .stats-grid {
@@ -295,11 +303,64 @@ h4 {
   padding: 1rem 1.2rem;
 }
 
+.instructions-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.intro-instructions {
+  margin-bottom: 1rem;
+}
+
 .instructions ol {
   margin: 0.85rem 0 0;
   padding-left: 1.25rem;
   display: grid;
   gap: 0.55rem;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.modal-card {
+  width: min(640px, 100%);
+  padding: 1.25rem;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(20, 20, 20, 0.96), rgba(10, 10, 10, 0.96));
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 1rem;
+}
+
+.intro-points {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.intro-points > div {
+  padding: 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .hidden {
@@ -324,13 +385,18 @@ h4 {
   .leaderboard-header,
   .leaderboard-form-row,
   .leaderboard-item,
-  .board-head {
+  .board-head,
+  .instructions-topline {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
   }
 
   .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .intro-points {
     grid-template-columns: 1fr;
   }
 

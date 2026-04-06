@@ -4,20 +4,44 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tap Flash</title>
-    <meta name="description" content="Tap Flash is a fast reaction game from Goji: wait for the flash, tap instantly, and chase live daily, weekly, and all-time leaderboards." />
+    <meta name="description" content="Tap Flash is a self-improving reaction game from Goji: wait for the flash, tap instantly, and watch the game evolve from real player feedback." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Tap Flash" />
-    <meta property="og:description" content="Wait for the flash, tap fast, and climb the live daily, weekly, and all-time leaderboards in this minimalist reaction game from Goji." />
-    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260324-1629" />
+    <meta property="og:description" content="A self-improving reaction game: tap fast, chase the leaderboards, and help shape the next version with your feedback." />
+    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260406-1059" />
     <meta property="og:image:alt" content="Tap Flash social preview card" />
     <meta property="og:url" content="https://tap-flash-web-production.up.railway.app/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Tap Flash" />
-    <meta name="twitter:description" content="Wait for the flash, tap fast, and chase live daily, weekly, and all-time leaderboards." />
-    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260324-1629" />
-    <link rel="stylesheet" href="/styles.css?v=20260324-1629" />
+    <meta name="twitter:description" content="A self-improving reaction game: tap fast, chase the leaderboards, and help shape the next version with your feedback." />
+    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260406-1059" />
+    <link rel="stylesheet" href="/styles.css?v=20260406-1059" />
   </head>
   <body>
+    <div id="introModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="introTitle">
+      <div class="modal-card">
+        <p class="label">Welcome</p>
+        <h2 id="introTitle">What is Tap Flash?</h2>
+        <p class="subtle">
+          Tap Flash is a tiny reaction game with a live improvement loop. You play five rounds, try to post a fast average,
+          and the game gets refined from real player feedback over time.
+        </p>
+        <div class="intro-points">
+          <div>
+            <strong>How to play</strong>
+            <p class="helper-text">Wait for the flash, then tap as fast as you can. Early taps add a penalty.</p>
+          </div>
+          <div>
+            <strong>Why it exists</strong>
+            <p class="helper-text">This is a self-improving product experiment: people play it, leave insights, and Goji ships updates.</p>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="introDismissButton" class="ghost-button" type="button">Got it — let me play</button>
+        </div>
+      </div>
+    </div>
+
     <main class="app shell">
       <header class="topbar">
         <div>
@@ -28,11 +52,14 @@
 
       <section class="panel hero">
         <div class="hero-copy">
-          <p class="label">Minimal reaction game</p>
+          <p class="label">Self-improving reaction game</p>
           <h2>Wait for the flash. Then tap fast.</h2>
           <p class="subtle">
-            Five rounds. One rule. Don’t click early.
+            Five rounds. One rule. Don’t click early. Then help shape what changes next.
           </p>
+          <div class="hero-actions">
+            <button id="reopenIntroButton" class="ghost-button" type="button">What is this?</button>
+          </div>
         </div>
         <div class="stats-grid" aria-label="Game stats">
           <article class="stat-card">
@@ -52,6 +79,25 @@
             <strong id="penaltyDisplay">+0 ms</strong>
           </article>
         </div>
+      </section>
+
+      <section class="panel instructions intro-instructions">
+        <div class="instructions-topline">
+          <div>
+            <p class="label">Start here</p>
+            <h3>How Tap Flash works</h3>
+          </div>
+          <p class="subtle">Play the game, chase the boards, then feed the loop.</p>
+        </div>
+        <ol>
+          <li>Tap <strong>Start game</strong>.</li>
+          <li>Wait through the dark phase.</li>
+          <li>When the arena flashes, tap as fast as you can.</li>
+          <li>Early clicks add a +100 ms penalty.</li>
+          <li>Finish all 5 rounds to get your average.</li>
+          <li>If your score cracks a live board, add your 3-letter name.</li>
+          <li>This game is part of a continuous product loop: real feedback comes in, Goji ships updates, and the experience evolves.</li>
+        </ol>
       </section>
 
       <section class="panel arena-panel">
@@ -123,23 +169,11 @@
         </form>
       </section>
 
-      <section class="panel instructions">
-        <h3>How it works</h3>
-        <ol>
-          <li>Tap <strong>Start game</strong>.</li>
-          <li>Wait through the dark phase.</li>
-          <li>When the arena flashes, tap as fast as you can.</li>
-          <li>Early clicks add a +100 ms penalty.</li>
-          <li>Finish all 5 rounds to get your average.</li>
-          <li>If your score cracks a live board, add your 3-letter name.</li>
-        </ol>
-      </section>
-
       <footer class="site-footer">
         Built by Goji on a Raspberry Pi 5.
       </footer>
     </main>
 
-    <script src="/app.js?v=20260324-1629"></script>
+    <script src="/app.js?v=20260406-1059"></script>
   </body>
 </html>
