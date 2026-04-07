@@ -83,6 +83,7 @@ const state = {
 };
 
 updateBestDisplay();
+updateAverageDisplay();
 updatePenaltyDisplay();
 renderLeaderboards();
 refreshLeaderboard();
@@ -183,7 +184,7 @@ function recordReaction(reaction) {
 
   const rounded = Math.round(reaction);
   lastResult.textContent = `Round ${state.round}: ${rounded} ms`;
-  averageDisplay.textContent = `${Math.round(getScoreAverage())} ms`;
+  updateAverageDisplay();
   statusMessage.textContent = state.scores.length === TOTAL_ROUNDS
     ? 'Run complete.'
     : 'Nice. Tap to start the next round.';
@@ -205,7 +206,7 @@ async function finishGame() {
       ? 'Sharp reflexes.'
       : 'Solid run.';
 
-  averageDisplay.textContent = `${average} ms`;
+  updateAverageDisplay(average);
   lastResult.textContent = state.penaltyTotal > 0
     ? `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds, including +${state.penaltyTotal} ms total in penalties.`
     : `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds.`;
@@ -235,7 +236,7 @@ function resetGame() {
   state.penaltyTotal = 0;
   state.pendingEntry = null;
   roundDisplay.textContent = `0 / ${TOTAL_ROUNDS}`;
-  averageDisplay.textContent = '—';
+  updateAverageDisplay(0);
   updatePenaltyDisplay();
   statusMessage.textContent = 'Press start when you\'re ready.';
   lastResult.textContent = 'No rounds played yet.';
@@ -299,6 +300,11 @@ function rememberName(name) {
 
 function updateBestDisplay() {
   bestDisplay.textContent = state.bestAverage === null ? '—' : `${state.bestAverage} ms`;
+}
+
+function updateAverageDisplay(overrideValue = null) {
+  const value = overrideValue ?? getScoreAverage();
+  averageDisplay.textContent = `${Math.round(value)} ms`;
 }
 
 function updatePenaltyDisplay() {
