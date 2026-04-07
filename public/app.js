@@ -207,7 +207,7 @@ async function finishGame() {
 
   averageDisplay.textContent = `${average} ms`;
   lastResult.textContent = state.penaltyTotal > 0
-    ? `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds, including +${state.penaltyTotal} ms in penalties.`
+    ? `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds, including +${state.penaltyTotal} ms total in penalties.`
     : `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds.`;
   setArenaState('idle', 'Play again');
   restartButton.classList.remove('hidden');
@@ -273,7 +273,8 @@ function getAverage(values) {
 
 function getScoreAverage() {
   if (!state.scores.length) return 0;
-  return getAverage(state.scores) + state.penaltyTotal;
+  const totalReaction = state.scores.reduce((sum, value) => sum + value, 0);
+  return (totalReaction + state.penaltyTotal) / state.scores.length;
 }
 
 function loadBestAverage() {
