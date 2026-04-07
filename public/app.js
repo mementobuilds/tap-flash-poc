@@ -61,6 +61,21 @@ const boardElements = {
   }
 };
 
+const podiumElements = [
+  {
+    name: document.getElementById('podiumName1'),
+    score: document.getElementById('podiumScore1')
+  },
+  {
+    name: document.getElementById('podiumName2'),
+    score: document.getElementById('podiumScore2')
+  },
+  {
+    name: document.getElementById('podiumName3'),
+    score: document.getElementById('podiumScore3')
+  }
+];
+
 const audioState = {
   context: null,
   enabled: false
@@ -363,6 +378,8 @@ async function refreshLeaderboard() {
 }
 
 function renderLeaderboards() {
+  renderPodium();
+
   Object.entries(BOARD_DEFINITIONS).forEach(([key, definition]) => {
     const board = state.leaderboards.leaderboards[key] || { entries: [] };
     const elements = boardElements[key];
@@ -393,6 +410,16 @@ function renderLeaderboards() {
   if (!state.pendingEntry) {
     leaderboardForm.classList.add('hidden');
   }
+}
+
+function renderPodium() {
+  const entries = state.leaderboards.leaderboards.allTime?.entries || [];
+
+  podiumElements.forEach((slot, index) => {
+    const entry = entries[index] || null;
+    slot.name.textContent = entry?.name || '---';
+    slot.score.textContent = entry ? `${entry.score} ms` : 'Open spot';
+  });
 }
 
 function scoreQualifies(score, entries) {
