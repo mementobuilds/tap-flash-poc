@@ -173,6 +173,15 @@ h4 {
   gap: 1rem;
 }
 
+.challenge-banner {
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.18), rgba(56, 189, 248, 0.08));
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  color: #ece9ff;
+  text-align: center;
+}
+
 .status-message {
   text-align: center;
   color: #d8dee8;
@@ -214,6 +223,7 @@ h4 {
 }
 
 .helper-row,
+.helper-actions,
 .leaderboard-header,
 .leaderboard-form-row,
 .leaderboard-item,
@@ -506,6 +516,7 @@ h4 {
   .topbar,
   .hero,
   .helper-row,
+  .helper-actions,
   .leaderboard-header,
   .leaderboard-form-row,
   .leaderboard-item,

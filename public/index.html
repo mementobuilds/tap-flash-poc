@@ -8,14 +8,14 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Tap Flash" />
     <meta property="og:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
-    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260408-1333" />
+    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260408-1754" />
     <meta property="og:image:alt" content="Tap Flash social preview card" />
     <meta property="og:url" content="https://tap-flash-web-production.up.railway.app/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Tap Flash" />
     <meta name="twitter:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
-    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260408-1333" />
-    <link rel="stylesheet" href="/styles.css?v=20260408-1333" />
+    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260408-1754" />
+    <link rel="stylesheet" href="/styles.css?v=20260408-1754" />
     <script src="https://itbroke.dev/itbroke.js" async></script>
     <script async src="https://jam.pieter.com/2026/widget.js"></script>
   </head>
@@ -139,11 +139,15 @@
             </article>
           </div>
         </div>
+        <div id="challengeBanner" class="challenge-banner hidden" aria-live="polite"></div>
         <div id="statusMessage" class="status-message">Press start when you’re ready.</div>
         <button id="arenaButton" class="arena idle" type="button">Start game</button>
         <div class="helper-row">
           <span id="lastResult" class="helper-text">No rounds played yet.</span>
-          <button id="restartButton" class="ghost-button hidden" type="button">Play again</button>
+          <div class="helper-actions">
+            <button id="shareChallengeButton" class="ghost-button hidden" type="button">Share challenge</button>
+            <button id="restartButton" class="ghost-button hidden" type="button">Play again</button>
+          </div>
         </div>
       </section>
 
@@ -212,6 +216,6 @@
       </footer>
     </main>
 
-    <script src="/app.js?v=20260408-1333"></script>
+    <script src="/app.js?v=20260408-1754"></script>
   </body>
 </html>

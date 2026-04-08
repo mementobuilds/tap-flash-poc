@@ -5,6 +5,7 @@ const INTRO_SEEN_KEY = 'tap-flash-intro-seen-v1';
 const LEADERBOARD_LIMIT = 10;
 const EARLY_CLICK_PENALTY_MS = 100;
 const CELEBRATION_GOOD_SCORE_MS = 320;
+const DEFAULT_CHALLENGER_NAME = 'TAP';
 
 const BOARD_DEFINITIONS = {
   daily: {
@@ -35,6 +36,8 @@ const averageDisplay = document.getElementById('averageDisplay');
 const bestDisplay = document.getElementById('bestDisplay');
 const penaltyDisplay = document.getElementById('penaltyDisplay');
 const lastResult = document.getElementById('lastResult');
+const challengeBanner = document.getElementById('challengeBanner');
+const shareChallengeButton = document.getElementById('shareChallengeButton');
 const leaderboardForm = document.getElementById('leaderboardForm');
 const initialsInput = document.getElementById('initialsInput');
 const qualifyingScore = document.getElementById('qualifyingScore');
@@ -94,12 +97,16 @@ const state = {
   pendingEntry: null,
   leaderboardLoaded: false,
   isSavingScore: false,
-  runCounter: 0
+  runCounter: 0,
+  lastCompletedAverage: null,
+  challengeContext: readChallengeContext()
 };
 
 updateBestDisplay();
 updateAverageDisplay();
 updatePenaltyDisplay();
+updateShareChallengeButton();
+renderChallengeBanner();
 renderLeaderboards();
 refreshLeaderboard();
 setArenaState('idle', 'Start game');
@@ -112,6 +119,7 @@ initialsInput.addEventListener('input', () => {
 });
 introDismissButton.addEventListener('click', () => dismissIntro(true));
 reopenIntroButton.addEventListener('click', () => showIntro());
+shareChallengeButton.addEventListener('click', handleShareChallenge);
 introModal.addEventListener('click', (event) => {
   if (event.target === introModal) {
     dismissIntro(true);
@@ -221,7 +229,9 @@ async function finishGame() {
       ? 'Sharp reflexes.'
       : 'Solid run.';
 
+  state.lastCompletedAverage = average;
   updateAverageDisplay(average);
+  updateShareChallengeButton();
   lastResult.textContent = state.penaltyTotal > 0
     ? `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds, including +${state.penaltyTotal} ms total in penalties.`
     : `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds.`;
@@ -250,6 +260,7 @@ function resetGame() {
   state.scores = [];
   state.penaltyTotal = 0;
   state.pendingEntry = null;
+  state.lastCompletedAverage = null;
   roundDisplay.textContent = `0 / ${TOTAL_ROUNDS}`;
   updateAverageDisplay(0);
   updatePenaltyDisplay();
@@ -261,6 +272,7 @@ function resetGame() {
   qualifyingBoards.textContent = '';
   initialsInput.value = state.rememberedName || '';
   setSaveState(false);
+  updateShareChallengeButton();
   setArenaState('idle', 'Start game');
   renderLeaderboards();
 }
@@ -306,6 +318,21 @@ function loadRememberedName() {
   return name.length === 3 ? name : null;
 }
 
+function readChallengeContext() {
+  const params = new URLSearchParams(window.location.search);
+  const score = Number(params.get('challenge'));
+  const challenger = sanitizeInitials(params.get('challenger') || '') || DEFAULT_CHALLENGER_NAME;
+
+  if (!Number.isFinite(score) || score <= 0) {
+    return null;
+  }
+
+  return {
+    score: Math.round(score),
+    challenger
+  };
+}
+
 function rememberName(name) {
   const sanitized = sanitizeInitials(name);
   if (sanitized.length !== 3) return;
@@ -324,6 +351,27 @@ function updateAverageDisplay(overrideValue = null) {
 
 function updatePenaltyDisplay() {
   penaltyDisplay.textContent = `+${state.penaltyTotal} ms`;
+}
+
+function updateShareChallengeButton() {
+  if (state.lastCompletedAverage === null) {
+    shareChallengeButton.classList.add('hidden');
+    return;
+  }
+
+  shareChallengeButton.classList.remove('hidden');
+}
+
+function renderChallengeBanner() {
+  const challenge = state.challengeContext;
+  if (!challenge) {
+    challengeBanner.classList.add('hidden');
+    challengeBanner.textContent = '';
+    return;
+  }
+
+  challengeBanner.classList.remove('hidden');
+  challengeBanner.textContent = `${challenge.challenger} challenged you to beat ${challenge.score} ms. Think you can top it?`;
 }
 
 function setSaveState(isSaving) {
@@ -542,6 +590,50 @@ function humanizeBoardNames(keys) {
 
 function sanitizeInitials(value) {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+}
+
+function buildChallengeSharePayload() {
+  if (state.lastCompletedAverage === null) return null;
+
+  const challenger = state.rememberedName || DEFAULT_CHALLENGER_NAME;
+  const url = new URL(window.location.href);
+  url.searchParams.set('challenge', String(Math.round(state.lastCompletedAverage)));
+  url.searchParams.set('challenger', challenger);
+
+  const score = Math.round(state.lastCompletedAverage);
+  const title = 'Tap Flash challenge';
+  const text = `${challenger} just threw down a Tap Flash challenge: beat ${score} ms.`;
+
+  return {
+    title,
+    text,
+    url: url.toString()
+  };
+}
+
+async function handleShareChallenge() {
+  const payload = buildChallengeSharePayload();
+  if (!payload) return;
+
+  try {
+    if (navigator.share) {
+      await navigator.share(payload);
+      lastResult.textContent = `Challenge ready — now let’s see who can beat ${Math.round(state.lastCompletedAverage)} ms.`;
+      return;
+    }
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
+      lastResult.textContent = 'Challenge link copied. Send it to a friend and make them sweat.';
+      return;
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return;
+    }
+  }
+
+  lastResult.textContent = payload.url;
 }
 
 function celebrate({ intensity = 'medium' } = {}) {
