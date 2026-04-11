@@ -279,20 +279,33 @@ h4 {
   animation: podium-float 4.8s ease-in-out infinite;
 }
 
+.podium-place::before,
 .podium-place::after {
   content: '';
   position: absolute;
-  inset: -40% 35%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
-  opacity: 0.45;
-  transform: rotate(18deg) translateY(-120%);
-  animation: podium-shimmer 5.6s ease-in-out infinite;
+  inset: 0;
   pointer-events: none;
+}
+
+.podium-place::before {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.16), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 45%);
+  opacity: 0.9;
+}
+
+.podium-place::after {
+  inset: auto -18% -32% -18%;
+  height: 70%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 34%, transparent 72%);
+  opacity: 0.32;
+  transform: scaleX(0.92);
+  animation: podium-light-breathe 4.6s ease-in-out infinite;
 }
 
 .podium-gold {
   min-height: 180px;
-  background: linear-gradient(180deg, rgba(250, 204, 21, 0.16), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, rgba(250, 204, 21, 0.14), rgba(255, 255, 255, 0.03));
   border-color: rgba(250, 204, 21, 0.35);
   box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.12), 0 0 36px rgba(250, 204, 21, 0.12);
   animation-delay: 0s;
@@ -335,17 +348,14 @@ h4 {
   }
 }
 
-@keyframes podium-shimmer {
+@keyframes podium-light-breathe {
   0%, 100% {
-    transform: rotate(18deg) translateY(-120%);
-    opacity: 0;
+    opacity: 0.22;
+    transform: scaleX(0.9) scaleY(0.96);
   }
-  20% {
-    opacity: 0.45;
-  }
-  55% {
-    transform: rotate(18deg) translateY(140%);
-    opacity: 0.18;
+  50% {
+    opacity: 0.4;
+    transform: scaleX(1.02) scaleY(1.04);
   }
 }
 

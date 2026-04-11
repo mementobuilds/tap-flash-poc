@@ -22,6 +22,12 @@ const railwayConfig = {
   environmentId: process.env.RAILWAY_ENVIRONMENT_ID,
   serviceId: process.env.RAILWAY_SERVICE_ID
 };
+const vclConfig = {
+  projectId: process.env.VCL_PROJECT_ID || null,
+  apiKey: process.env.VCL_API_KEY || null,
+  baseUrl: (process.env.VCL_BASE_URL || 'https://vibecodinglist.com').replace(/\/$/, '')
+};
+const statePath = path.join(repoRoot, '.state', 'agent-insights-state.json');
 
 function loadEnvFile(file) {
   if (!fs.existsSync(file)) return;
@@ -220,6 +226,148 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function readJson(filePath, fallback = null) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n');
+}
+
+function normalizeText(text) {
+  return String(text || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function extractFeedbackId(result) {
+  if (!result || typeof result !== 'object') return null;
+  return result.feedbackId || result.id || result.sourceId || result?.feedback?.id || null;
+}
+
+function recordAuthoredReply(result, content) {
+  const state = readJson(statePath, {
+    ackedKeys: [],
+    pendingFindings: [],
+    pendingReplies: [],
+    notifiedKeys: [],
+    authoredSourceIds: [],
+    authoredTexts: [],
+    history: [],
+    lastFeedFingerprint: null,
+    feedKind: null
+  });
+
+  const authoredSourceIds = new Set((state.authoredSourceIds || []).map((value) => String(value)));
+  const authoredTexts = new Set((state.authoredTexts || []).map(normalizeText).filter(Boolean));
+  const extractedId = extractFeedbackId(result);
+  if (extractedId !== null && extractedId !== undefined) authoredSourceIds.add(String(extractedId));
+  if (content) authoredTexts.add(normalizeText(content));
+
+  writeJson(statePath, {
+    ...state,
+    authoredSourceIds: Array.from(authoredSourceIds).slice(-200),
+    authoredTexts: Array.from(authoredTexts).slice(-200)
+  });
+}
+
+function inferVclProjectId() {
+  if (vclConfig.projectId) return String(vclConfig.projectId);
+  const defaultConfigPath = path.join(process.env.HOME || '', '.openclaw', 'workspace', '.openclaw', 'tap-flash-vcl.json');
+  if (!fs.existsSync(defaultConfigPath)) return null;
+  try {
+    const config = JSON.parse(fs.readFileSync(defaultConfigPath, 'utf8'));
+    if (config.projectId) return String(config.projectId);
+    if (config.url) {
+      const match = config.url.match(/\/projects\/(\d+)\//);
+      if (match) return match[1];
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function hasVclWriteConfig() {
+  return Boolean(inferVclProjectId() && (vclConfig.apiKey || fs.existsSync(path.join(process.env.HOME || '', '.openclaw', 'workspace', '.openclaw', 'tap-flash-vcl.json'))));
+}
+
+async function vclPost(endpoint, payload) {
+  const projectId = inferVclProjectId();
+  const apiKey = vclConfig.apiKey || (() => {
+    const defaultConfigPath = path.join(process.env.HOME || '', '.openclaw', 'workspace', '.openclaw', 'tap-flash-vcl.json');
+    if (!fs.existsSync(defaultConfigPath)) return null;
+    try {
+      return JSON.parse(fs.readFileSync(defaultConfigPath, 'utf8')).apiKey || null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!projectId || !apiKey) {
+    throw new Error('Missing VCL write config for feedback/changelog post');
+  }
+
+  const res = await fetch(`${vclConfig.baseUrl}/api/project-intelligence/v1/projects/${projectId}/${endpoint}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'x-project-api-key': apiKey
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    throw new Error(`VCL ${endpoint} request failed: ${res.status} ${res.statusText} ${await res.text()}`);
+  }
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : { ok: true };
+}
+
+async function maybePostVclFollowups() {
+  const changelogContent = process.env.VCL_CHANGELOG_CONTENT || null;
+  const feedbackRequest = process.env.VCL_FEEDBACK_REQUEST || null;
+  const linkedFeedbackIds = String(process.env.VCL_LINKED_FEEDBACK_IDS || '')
+    .split(',')
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .slice(0, 5);
+  const replyParentId = process.env.VCL_REPLY_PARENT_ID || null;
+  const replyContent = process.env.VCL_REPLY_CONTENT || null;
+
+  if (!changelogContent && !replyContent) {
+    return;
+  }
+
+  if (!hasVclWriteConfig()) {
+    throw new Error('VCL follow-up requested but write config is missing');
+  }
+
+  if (changelogContent) {
+    console.log('Posting VCL changelog entry...');
+    await vclPost('updates', {
+      content: changelogContent,
+      ...(feedbackRequest ? { feedbackRequest } : {}),
+      ...(linkedFeedbackIds.length ? { linkedFeedbackIds } : {})
+    });
+  }
+
+  if (replyContent) {
+    console.log(`Posting VCL feedback reply${replyParentId ? ` to parent ${replyParentId}` : ''}...`);
+    const result = await vclPost('feedback', {
+      content: replyContent,
+      type: 'comment',
+      ...(replyParentId ? { parentId: Number(replyParentId) } : {})
+    });
+    recordAuthoredReply(result, replyContent);
+  }
+}
+
 async function checkOnce() {
   const localIndex = readLocal('index.html');
   const localApp = readLocal('app.js');
@@ -288,6 +436,7 @@ async function main() {
       console.log(`[check] index=${matches.index} app=${matches.app} css=${matches.css}`);
       if (matches.index && matches.app && matches.css) {
         console.log('Live deployment verified. Railway is serving the current local version.');
+        await maybePostVclFollowups();
         return;
       }
     } catch (error) {
