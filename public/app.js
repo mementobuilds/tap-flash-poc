@@ -99,7 +99,10 @@ const state = {
   isSavingScore: false,
   runCounter: 0,
   lastCompletedAverage: null,
-  challengeContext: readChallengeContext()
+  challengeContext: readChallengeContext(),
+  isHoldingArena: false,
+  activePointerId: null,
+  suppressNextClick: false
 };
 
 updateBestDisplay();
@@ -109,8 +112,11 @@ updateShareChallengeButton();
 renderChallengeBanner();
 renderLeaderboards();
 refreshLeaderboard();
-setArenaState('idle', 'Start game');
+setArenaState('idle', 'Hold to start');
 
+arenaButton.addEventListener('pointerdown', handleArenaPointerDown);
+arenaButton.addEventListener('pointerup', handleArenaPointerUp);
+arenaButton.addEventListener('pointercancel', handleArenaPointerCancel);
 arenaButton.addEventListener('click', handleArenaClick);
 restartButton.addEventListener('click', resetGame);
 leaderboardForm.addEventListener('submit', handleLeaderboardSubmit);
@@ -135,12 +141,75 @@ if (!localStorage.getItem(INTRO_SEEN_KEY)) {
   showIntro();
 }
 
-function handleArenaClick() {
+function dismissIntroIfOpen() {
   if (!introModal.classList.contains('hidden')) {
     dismissIntro(true);
   }
+}
 
+function handleArenaPointerDown(event) {
+  dismissIntroIfOpen();
   ensureAudio();
+
+  state.isHoldingArena = true;
+  state.activePointerId = event.pointerId;
+  state.suppressNextClick = true;
+
+  if (typeof arenaButton.setPointerCapture === 'function') {
+    try {
+      arenaButton.setPointerCapture(event.pointerId);
+    } catch {}
+  }
+
+  if (state.phase === 'finished') {
+    resetGame();
+    beginRound();
+    return;
+  }
+
+  if (state.phase === 'idle') {
+    beginRound();
+  }
+}
+
+function handleArenaPointerUp(event) {
+  if (state.activePointerId !== null && event.pointerId !== state.activePointerId) {
+    return;
+  }
+
+  releaseArenaHold(event.pointerId);
+
+  if (state.phase === 'waiting') {
+    applyEarlyReleasePenalty();
+    return;
+  }
+
+  if (state.phase === 'ready') {
+    playTone('tap');
+    const reaction = performance.now() - state.reactionStart;
+    recordReaction(reaction);
+  }
+}
+
+function handleArenaPointerCancel(event) {
+  if (state.activePointerId !== null && event.pointerId !== state.activePointerId) {
+    return;
+  }
+  releaseArenaHold(event.pointerId);
+}
+
+function handleArenaClick(event) {
+  dismissIntroIfOpen();
+  ensureAudio();
+
+  if (state.suppressNextClick) {
+    state.suppressNextClick = false;
+    return;
+  }
+
+  if (event.detail !== 0) {
+    return;
+  }
 
   if (state.phase === 'finished') {
     resetGame();
@@ -154,15 +223,7 @@ function handleArenaClick() {
   }
 
   if (state.phase === 'waiting') {
-    clearTimeout(state.timeoutId);
-    state.timeoutId = null;
-    state.penaltyTotal += EARLY_CLICK_PENALTY_MS;
-    updatePenaltyDisplay();
-    playTone('early');
-    setArenaState('too-soon', 'Too soon');
-    statusMessage.textContent = `Too early. +${EARLY_CLICK_PENALTY_MS} ms penalty.`;
-    lastResult.textContent = `Early click penalty applied. Total penalties: +${state.penaltyTotal} ms.`;
-    window.setTimeout(beginRound, 850);
+    applyEarlyReleasePenalty();
     return;
   }
 
@@ -171,6 +232,30 @@ function handleArenaClick() {
     const reaction = performance.now() - state.reactionStart;
     recordReaction(reaction);
   }
+}
+
+function releaseArenaHold(pointerId = null) {
+  state.isHoldingArena = false;
+  if (pointerId !== null && typeof arenaButton.releasePointerCapture === 'function') {
+    try {
+      if (arenaButton.hasPointerCapture?.(pointerId)) {
+        arenaButton.releasePointerCapture(pointerId);
+      }
+    } catch {}
+  }
+  state.activePointerId = null;
+}
+
+function applyEarlyReleasePenalty() {
+  clearTimeout(state.timeoutId);
+  state.timeoutId = null;
+  state.penaltyTotal += EARLY_CLICK_PENALTY_MS;
+  updatePenaltyDisplay();
+  playTone('early');
+  setArenaState('too-soon', 'Too soon');
+  statusMessage.textContent = `Too early. +${EARLY_CLICK_PENALTY_MS} ms penalty.`;
+  lastResult.textContent = `Released too early. Total penalties: +${state.penaltyTotal} ms.`;
+  window.setTimeout(beginRound, 850);
 }
 
 function beginRound() {
@@ -186,16 +271,16 @@ function beginRound() {
   state.phase = 'waiting';
   state.round = state.scores.length + 1;
   roundDisplay.textContent = `${state.round} / ${TOTAL_ROUNDS}`;
-  statusMessage.textContent = `Round ${state.round}: wait for the flash.`;
-  lastResult.textContent = 'Focus. No early taps.';
-  setArenaState('waiting', 'Wait…');
+  statusMessage.textContent = `Round ${state.round}: press and hold, then release on TAP.`;
+  lastResult.textContent = 'Hold steady. Releasing early adds a penalty.';
+  setArenaState('waiting', 'Hold…');
 
   const delay = 1100 + Math.random() * 2600;
   state.timeoutId = window.setTimeout(() => {
     state.phase = 'ready';
     state.reactionStart = performance.now();
     playTone('ready');
-    statusMessage.textContent = 'Tap now.';
+    statusMessage.textContent = 'Release now.';
     setArenaState('ready', 'TAP');
   }, delay);
 }
@@ -210,8 +295,8 @@ function recordReaction(reaction) {
   updateAverageDisplay();
   statusMessage.textContent = state.scores.length === TOTAL_ROUNDS
     ? 'Run complete.'
-    : 'Nice. Tap to start the next round.';
-  setArenaState('idle', state.scores.length === TOTAL_ROUNDS ? 'See results' : 'Tap to start next round');
+    : 'Nice. Press and hold to start the next round.';
+  setArenaState('idle', state.scores.length === TOTAL_ROUNDS ? 'See results' : 'Hold to start next round');
 
   if (state.scores.length === TOTAL_ROUNDS) {
     finishGame();
@@ -264,7 +349,7 @@ function resetGame() {
   roundDisplay.textContent = `0 / ${TOTAL_ROUNDS}`;
   updateAverageDisplay(0);
   updatePenaltyDisplay();
-  statusMessage.textContent = 'Press start when you\'re ready.';
+  statusMessage.textContent = 'Press and hold when you\'re ready.';
   lastResult.textContent = 'No rounds played yet.';
   restartButton.classList.add('hidden');
   leaderboardForm.classList.add('hidden');
@@ -273,7 +358,7 @@ function resetGame() {
   initialsInput.value = state.rememberedName || '';
   setSaveState(false);
   updateShareChallengeButton();
-  setArenaState('idle', 'Start game');
+  setArenaState('idle', 'Hold to start');
   renderLeaderboards();
 }
 
