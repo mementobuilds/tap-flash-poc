@@ -118,6 +118,8 @@ arenaButton.addEventListener('pointerdown', handleArenaPointerDown);
 arenaButton.addEventListener('pointerup', handleArenaPointerUp);
 arenaButton.addEventListener('pointercancel', handleArenaPointerCancel);
 arenaButton.addEventListener('click', handleArenaClick);
+arenaButton.addEventListener('contextmenu', preventArenaDefault);
+arenaButton.addEventListener('selectstart', preventArenaDefault);
 restartButton.addEventListener('click', resetGame);
 leaderboardForm.addEventListener('submit', handleLeaderboardSubmit);
 initialsInput.addEventListener('input', () => {
@@ -145,6 +147,10 @@ function dismissIntroIfOpen() {
   if (!introModal.classList.contains('hidden')) {
     dismissIntro(true);
   }
+}
+
+function preventArenaDefault(event) {
+  event.preventDefault();
 }
 
 function handleArenaPointerDown(event) {
