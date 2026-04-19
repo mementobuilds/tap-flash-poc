@@ -173,7 +173,8 @@ h4 {
   gap: 1rem;
 }
 
-.mode-switch {
+.mode-switch,
+.leaderboard-mode-switch {
   display: inline-flex;
   gap: 0.65rem;
   flex-wrap: wrap;
@@ -309,6 +310,7 @@ h4 {
   letter-spacing: 0.02em;
   pointer-events: none;
   backdrop-filter: blur(10px);
+  animation: slice-hint-breathe 2.2s ease-in-out infinite;
 }
 
 .helper-row,
@@ -456,6 +458,17 @@ h4 {
   50% {
     transform: scale(1.08);
     filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.28));
+  }
+}
+
+@keyframes slice-hint-breathe {
+  0%, 100% {
+    opacity: 0.78;
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(2px);
   }
 }
 
@@ -685,7 +698,8 @@ h4 {
     grid-template-columns: 1fr;
   }
 
-  .mode-switch {
+  .mode-switch,
+  .leaderboard-mode-switch {
     width: 100%;
   }
 
