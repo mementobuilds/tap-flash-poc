@@ -1,10 +1,11 @@
 const TOTAL_ROUNDS = 5;
-const STORAGE_KEY = 'tap-flash-best-average';
+const STORAGE_KEY_PREFIX = 'tap-flash-best-score';
 const PLAYER_NAME_KEY = 'tap-flash-player-name-v1';
 const INTRO_SEEN_KEY = 'tap-flash-intro-seen-v1';
 const LEADERBOARD_LIMIT = 10;
 const EARLY_CLICK_PENALTY_MS = 100;
 const CELEBRATION_GOOD_SCORE_MS = 320;
+const SLICE_PERFECT_THRESHOLD_BPS = 50;
 const DEFAULT_CHALLENGER_NAME = 'TAP';
 
 const BOARD_DEFINITIONS = {
@@ -12,19 +13,62 @@ const BOARD_DEFINITIONS = {
     key: 'daily',
     label: 'Daily',
     detail: 'Last 24 hours',
-    emptyText: 'No scores in the last 24 hours yet. Be the first.'
+    emptyText: 'No scores in this window yet. Be the first.'
   },
   weekly: {
     key: 'weekly',
     label: 'Weekly',
     detail: 'Last 7 days',
-    emptyText: 'No scores in the last 7 days yet. Set the pace.'
+    emptyText: 'No scores in this window yet. Set the pace.'
   },
   allTime: {
     key: 'allTime',
     label: 'All-time',
     detail: 'Best ever',
     emptyText: 'No all-time scores yet. Make history.'
+  }
+};
+
+const GAME_MODES = {
+  tap: {
+    key: 'tap',
+    label: 'Tap Flash',
+    heroLabel: 'Reaction mode',
+    statusIdle: 'Press and hold when you’re ready.',
+    startLabel: 'Hold to start',
+    nextLabel: 'Hold to start next round',
+    resultsLabel: 'Play again',
+    roundLabel: 'Round',
+    averageLabel: 'Average',
+    bestLabel: 'Best ever',
+    supportLabel: 'Penalties',
+    supportDisplay: (state) => `+${state.penaltyTotal} ms`,
+    formatScore: (score) => `${Math.round(score)} ms`,
+    shareText: (name, score, url) => `${name} just threw down a Tap Flash challenge: beat ${Math.round(score)} ms. ${url}`,
+    challengeText: (challenger, score) => `${challenger} challenged you to beat ${Math.round(score)} ms. Think you can top it?`,
+    qualifyingMessage: (keys) => keys.length === 1
+      ? `You cracked the ${humanizeBoardNames(keys)} board. Add your 3-letter name.`
+      : `You landed on the ${humanizeBoardNames(keys)} boards. Add your 3-letter name.`
+  },
+  slice: {
+    key: 'slice',
+    label: 'Split Fifty',
+    heroLabel: 'Split mode',
+    statusIdle: 'Tap Start round, drag the cut line, then lock it in.',
+    startLabel: 'Start round',
+    nextLabel: 'Next shape',
+    resultsLabel: 'Play again',
+    roundLabel: 'Round',
+    averageLabel: 'Avg off',
+    bestLabel: 'Best ever',
+    supportLabel: 'Perfect cuts',
+    supportDisplay: (state) => String(state.perfectCuts),
+    formatScore: (score) => `${(Number(score) / 100).toFixed(2)}% off`,
+    shareText: (name, score, url) => `${name} just threw down a Split Fifty challenge: beat ${(Number(score) / 100).toFixed(2)}% off. ${url}`,
+    challengeText: (challenger, score) => `${challenger} challenged you to get closer than ${(Number(score) / 100).toFixed(2)}% off.`,
+    qualifyingMessage: (keys) => keys.length === 1
+      ? `Nice cut. You cracked the ${humanizeBoardNames(keys)} board. Add your 3-letter name.`
+      : `Nice cut. You landed on the ${humanizeBoardNames(keys)} boards. Add your 3-letter name.`
   }
 };
 
@@ -35,6 +79,10 @@ const roundDisplay = document.getElementById('roundDisplay');
 const averageDisplay = document.getElementById('averageDisplay');
 const bestDisplay = document.getElementById('bestDisplay');
 const penaltyDisplay = document.getElementById('penaltyDisplay');
+const roundLabel = document.getElementById('roundLabel');
+const averageLabel = document.getElementById('averageLabel');
+const bestLabel = document.getElementById('bestLabel');
+const penaltyLabel = document.getElementById('penaltyLabel');
 const lastResult = document.getElementById('lastResult');
 const challengeBanner = document.getElementById('challengeBanner');
 const shareChallengeButton = document.getElementById('shareChallengeButton');
@@ -48,6 +96,14 @@ const celebrationLayer = document.getElementById('celebrationLayer');
 const introModal = document.getElementById('introModal');
 const introDismissButton = document.getElementById('introDismissButton');
 const reopenIntroButton = document.getElementById('reopenIntroButton');
+const modeTapButton = document.getElementById('modeTapButton');
+const modeSliceButton = document.getElementById('modeSliceButton');
+const sliceArena = document.getElementById('sliceArena');
+const sliceBoard = document.getElementById('sliceBoard');
+const sliceSvg = document.getElementById('sliceSvg');
+const sliceShape = document.getElementById('sliceShape');
+const sliceCutLine = document.getElementById('sliceCutLine');
+const sliceSubmitButton = document.getElementById('sliceSubmitButton');
 
 const boardElements = {
   daily: {
@@ -65,18 +121,9 @@ const boardElements = {
 };
 
 const podiumElements = [
-  {
-    name: document.getElementById('podiumName1'),
-    score: document.getElementById('podiumScore1')
-  },
-  {
-    name: document.getElementById('podiumName2'),
-    score: document.getElementById('podiumScore2')
-  },
-  {
-    name: document.getElementById('podiumName3'),
-    score: document.getElementById('podiumScore3')
-  }
+  { name: document.getElementById('podiumName1'), score: document.getElementById('podiumScore1') },
+  { name: document.getElementById('podiumName2'), score: document.getElementById('podiumScore2') },
+  { name: document.getElementById('podiumName3'), score: document.getElementById('podiumScore3') }
 ];
 
 const audioState = {
@@ -84,105 +131,162 @@ const audioState = {
   enabled: false
 };
 
+const initialChallenge = readChallengeContext();
+
 const state = {
+  currentMode: initialChallenge?.mode || 'tap',
   phase: 'idle',
   round: 0,
-  reactionStart: 0,
-  timeoutId: null,
-  scores: [],
+  roundScores: [],
   penaltyTotal: 0,
-  bestAverage: loadBestAverage(),
+  perfectCuts: 0,
+  bestScores: {
+    tap: loadBestScore('tap'),
+    slice: loadBestScore('slice')
+  },
   rememberedName: loadRememberedName(),
   leaderboards: emptyLeaderboardPayload(),
   pendingEntry: null,
   leaderboardLoaded: false,
   isSavingScore: false,
   runCounter: 0,
-  lastCompletedAverage: null,
-  challengeContext: readChallengeContext(),
-  isHoldingArena: false,
-  activePointerId: null,
-  suppressNextClick: false
+  lastCompletedScore: null,
+  challengeContext: initialChallenge,
+  tap: {
+    reactionStart: 0,
+    timeoutId: null,
+    activePointerId: null,
+    suppressNextClick: false
+  },
+  slice: {
+    isDragging: false,
+    currentShape: null,
+    cutX: 50,
+    submittedThisRound: false
+  }
 };
 
-updateBestDisplay();
-updateAverageDisplay();
-updatePenaltyDisplay();
-updateShareChallengeButton();
-renderChallengeBanner();
-renderLeaderboards();
-refreshLeaderboard();
-setArenaState('idle', 'Hold to start');
+init();
 
-arenaButton.addEventListener('pointerdown', handleArenaPointerDown);
-arenaButton.addEventListener('pointerup', handleArenaPointerUp);
-arenaButton.addEventListener('pointercancel', handleArenaPointerCancel);
-arenaButton.addEventListener('click', handleArenaClick);
-arenaButton.addEventListener('contextmenu', preventArenaDefault);
-arenaButton.addEventListener('selectstart', preventArenaDefault);
-restartButton.addEventListener('click', resetGame);
-leaderboardForm.addEventListener('submit', handleLeaderboardSubmit);
-initialsInput.addEventListener('input', () => {
-  initialsInput.value = sanitizeInitials(initialsInput.value);
-});
-introDismissButton.addEventListener('click', () => dismissIntro(true));
-reopenIntroButton.addEventListener('click', () => showIntro());
-shareChallengeButton.addEventListener('click', handleShareChallenge);
-introModal.addEventListener('click', (event) => {
-  if (event.target === introModal) {
-    dismissIntro(true);
-  }
-});
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !introModal.classList.contains('hidden')) {
-    dismissIntro(true);
-  }
-});
+function init() {
+  updateModeUI();
+  updateBestDisplay();
+  updateAverageDisplay();
+  updateSupportDisplay();
+  updateShareChallengeButton();
+  renderChallengeBanner();
+  renderLeaderboards();
+  refreshLeaderboard();
 
-if (!localStorage.getItem(INTRO_SEEN_KEY)) {
-  showIntro();
+  arenaButton.addEventListener('pointerdown', handleArenaPointerDown);
+  arenaButton.addEventListener('pointerup', handleArenaPointerUp);
+  arenaButton.addEventListener('pointercancel', handleArenaPointerCancel);
+  arenaButton.addEventListener('click', handleArenaClick);
+  arenaButton.addEventListener('contextmenu', preventDefault);
+  arenaButton.addEventListener('selectstart', preventDefault);
+
+  sliceBoard.addEventListener('pointerdown', handleSlicePointerDown);
+  sliceBoard.addEventListener('pointermove', handleSlicePointerMove);
+  sliceBoard.addEventListener('pointerup', handleSlicePointerUp);
+  sliceBoard.addEventListener('pointercancel', handleSlicePointerCancel);
+  sliceBoard.addEventListener('contextmenu', preventDefault);
+  sliceBoard.addEventListener('selectstart', preventDefault);
+
+  sliceSubmitButton.addEventListener('click', handleSliceSubmit);
+  restartButton.addEventListener('click', handleRestart);
+  leaderboardForm.addEventListener('submit', handleLeaderboardSubmit);
+  initialsInput.addEventListener('input', () => {
+    initialsInput.value = sanitizeInitials(initialsInput.value);
+  });
+  introDismissButton.addEventListener('click', () => dismissIntro(true));
+  reopenIntroButton.addEventListener('click', () => showIntro());
+  shareChallengeButton.addEventListener('click', handleShareChallenge);
+  modeTapButton.addEventListener('click', () => switchMode('tap'));
+  modeSliceButton.addEventListener('click', () => switchMode('slice'));
+
+  introModal.addEventListener('click', (event) => {
+    if (event.target === introModal) dismissIntro(true);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !introModal.classList.contains('hidden')) dismissIntro(true);
+  });
+
+  if (!localStorage.getItem(INTRO_SEEN_KEY)) showIntro();
+}
+
+function getModeConfig(mode = state.currentMode) {
+  return GAME_MODES[mode] || GAME_MODES.tap;
+}
+
+function switchMode(mode) {
+  if (!GAME_MODES[mode] || state.currentMode === mode) return;
+  state.currentMode = mode;
+  state.challengeContext = state.challengeContext && state.challengeContext.mode === mode ? state.challengeContext : null;
+  resetGame();
+  updateModeUI();
+  renderChallengeBanner();
+  refreshLeaderboard();
+}
+
+function updateModeUI() {
+  const mode = state.currentMode;
+  const config = getModeConfig();
+  modeTapButton.classList.toggle('active', mode === 'tap');
+  modeTapButton.setAttribute('aria-selected', String(mode === 'tap'));
+  modeSliceButton.classList.toggle('active', mode === 'slice');
+  modeSliceButton.setAttribute('aria-selected', String(mode === 'slice'));
+
+  roundLabel.textContent = config.roundLabel;
+  averageLabel.textContent = config.averageLabel;
+  bestLabel.textContent = config.bestLabel;
+  penaltyLabel.textContent = config.supportLabel;
+
+  arenaButton.classList.toggle('hidden', mode !== 'tap');
+  sliceArena.classList.toggle('hidden', mode !== 'slice');
+
+  if (mode === 'tap') {
+    setArenaState(state.phase === 'finished' ? 'idle' : state.phase, state.phase === 'finished' ? config.resultsLabel : (state.phase === 'idle' ? config.startLabel : arenaButton.textContent));
+  } else {
+    sliceSubmitButton.textContent = state.phase === 'idle' ? config.startLabel : (state.phase === 'finished' ? config.resultsLabel : 'Lock cut');
+  }
+
+  updateBestDisplay();
+  updateAverageDisplay();
+  updateSupportDisplay();
+  updateShareChallengeButton();
 }
 
 function dismissIntroIfOpen() {
-  if (!introModal.classList.contains('hidden')) {
-    dismissIntro(true);
-  }
+  if (!introModal.classList.contains('hidden')) dismissIntro(true);
 }
 
-function preventArenaDefault(event) {
+function preventDefault(event) {
   event.preventDefault();
 }
 
 function handleArenaPointerDown(event) {
+  if (state.currentMode !== 'tap') return;
   dismissIntroIfOpen();
   ensureAudio();
-
-  state.isHoldingArena = true;
-  state.activePointerId = event.pointerId;
-  state.suppressNextClick = true;
+  state.tap.activePointerId = event.pointerId;
+  state.tap.suppressNextClick = true;
 
   if (typeof arenaButton.setPointerCapture === 'function') {
-    try {
-      arenaButton.setPointerCapture(event.pointerId);
-    } catch {}
+    try { arenaButton.setPointerCapture(event.pointerId); } catch {}
   }
 
   if (state.phase === 'finished') {
     resetGame();
-    beginRound();
+    beginTapRound();
     return;
   }
 
-  if (state.phase === 'idle') {
-    beginRound();
-  }
+  if (state.phase === 'idle') beginTapRound();
 }
 
 function handleArenaPointerUp(event) {
-  if (state.activePointerId !== null && event.pointerId !== state.activePointerId) {
-    return;
-  }
-
+  if (state.currentMode !== 'tap') return;
+  if (state.tap.activePointerId !== null && event.pointerId !== state.tap.activePointerId) return;
   releaseArenaHold(event.pointerId);
 
   if (state.phase === 'waiting') {
@@ -192,39 +296,37 @@ function handleArenaPointerUp(event) {
 
   if (state.phase === 'ready') {
     playTone('tap');
-    const reaction = performance.now() - state.reactionStart;
-    recordReaction(reaction);
+    const reaction = performance.now() - state.tap.reactionStart;
+    recordTapReaction(reaction);
   }
 }
 
 function handleArenaPointerCancel(event) {
-  if (state.activePointerId !== null && event.pointerId !== state.activePointerId) {
-    return;
-  }
+  if (state.currentMode !== 'tap') return;
+  if (state.tap.activePointerId !== null && event.pointerId !== state.tap.activePointerId) return;
   releaseArenaHold(event.pointerId);
 }
 
 function handleArenaClick(event) {
+  if (state.currentMode !== 'tap') return;
   dismissIntroIfOpen();
   ensureAudio();
 
-  if (state.suppressNextClick) {
-    state.suppressNextClick = false;
+  if (state.tap.suppressNextClick) {
+    state.tap.suppressNextClick = false;
     return;
   }
 
-  if (event.detail !== 0) {
-    return;
-  }
+  if (event.detail !== 0) return;
 
   if (state.phase === 'finished') {
     resetGame();
-    beginRound();
+    beginTapRound();
     return;
   }
 
   if (state.phase === 'idle') {
-    beginRound();
+    beginTapRound();
     return;
   }
 
@@ -235,76 +337,174 @@ function handleArenaClick(event) {
 
   if (state.phase === 'ready') {
     playTone('tap');
-    const reaction = performance.now() - state.reactionStart;
-    recordReaction(reaction);
+    const reaction = performance.now() - state.tap.reactionStart;
+    recordTapReaction(reaction);
   }
 }
 
 function releaseArenaHold(pointerId = null) {
-  state.isHoldingArena = false;
   if (pointerId !== null && typeof arenaButton.releasePointerCapture === 'function') {
     try {
-      if (arenaButton.hasPointerCapture?.(pointerId)) {
-        arenaButton.releasePointerCapture(pointerId);
-      }
+      if (arenaButton.hasPointerCapture?.(pointerId)) arenaButton.releasePointerCapture(pointerId);
     } catch {}
   }
-  state.activePointerId = null;
+  state.tap.activePointerId = null;
 }
 
 function applyEarlyReleasePenalty() {
-  clearTimeout(state.timeoutId);
-  state.timeoutId = null;
+  clearTimeout(state.tap.timeoutId);
+  state.tap.timeoutId = null;
   state.penaltyTotal += EARLY_CLICK_PENALTY_MS;
-  updatePenaltyDisplay();
+  updateSupportDisplay();
   playTone('early');
   setArenaState('too-soon', 'Too soon');
   statusMessage.textContent = `Too early. +${EARLY_CLICK_PENALTY_MS} ms penalty.`;
   lastResult.textContent = `Released too early. Total penalties: +${state.penaltyTotal} ms.`;
-  window.setTimeout(beginRound, 850);
+  window.setTimeout(beginTapRound, 850);
 }
 
-function beginRound() {
-  if (state.round === 0 && state.scores.length === 0) {
-    restartButton.classList.add('hidden');
-  }
-
-  if (state.scores.length >= TOTAL_ROUNDS) {
+function beginTapRound() {
+  if (state.round === 0 && state.roundScores.length === 0) restartButton.classList.add('hidden');
+  if (state.roundScores.length >= TOTAL_ROUNDS) {
     finishGame();
     return;
   }
 
   state.phase = 'waiting';
-  state.round = state.scores.length + 1;
+  state.round = state.roundScores.length + 1;
   roundDisplay.textContent = `${state.round} / ${TOTAL_ROUNDS}`;
   statusMessage.textContent = `Round ${state.round}: press and hold, then release on TAP.`;
   lastResult.textContent = 'Hold steady. Releasing early adds a penalty.';
   setArenaState('waiting', 'Hold…');
 
   const delay = 1100 + Math.random() * 2600;
-  state.timeoutId = window.setTimeout(() => {
+  state.tap.timeoutId = window.setTimeout(() => {
     state.phase = 'ready';
-    state.reactionStart = performance.now();
+    state.tap.reactionStart = performance.now();
     playTone('ready');
     statusMessage.textContent = 'Release now.';
     setArenaState('ready', 'TAP');
   }, delay);
 }
 
-function recordReaction(reaction) {
-  state.scores.push(reaction);
+function recordTapReaction(reaction) {
+  state.roundScores.push(reaction);
   state.phase = 'idle';
-  state.timeoutId = null;
+  state.tap.timeoutId = null;
 
   const rounded = Math.round(reaction);
   lastResult.textContent = `Round ${state.round}: ${rounded} ms`;
   updateAverageDisplay();
-  statusMessage.textContent = state.scores.length === TOTAL_ROUNDS
+  statusMessage.textContent = state.roundScores.length === TOTAL_ROUNDS
     ? 'Run complete.'
     : 'Nice. Press and hold to start the next round.';
-  setArenaState('idle', state.scores.length === TOTAL_ROUNDS ? 'See results' : 'Hold to start next round');
+  setArenaState('idle', state.roundScores.length === TOTAL_ROUNDS ? getModeConfig().resultsLabel : getModeConfig().nextLabel);
 
-  if (state.scores.length === TOTAL_ROUNDS) {
+  if (state.roundScores.length === TOTAL_ROUNDS) finishGame();
+}
+
+function handleSliceSubmit() {
+  if (state.currentMode !== 'slice') return;
+  dismissIntroIfOpen();
+
+  if (state.phase === 'finished') {
+    resetGame();
+    beginSliceRound();
+    return;
+  }
+
+  if (state.phase === 'idle') {
+    beginSliceRound();
+    return;
+  }
+
+  if (state.phase === 'playing') {
+    submitSliceCut();
+  }
+}
+
+function handleSlicePointerDown(event) {
+  if (state.currentMode !== 'slice' || state.phase !== 'playing') return;
+  dismissIntroIfOpen();
+  state.slice.isDragging = true;
+  if (typeof sliceBoard.setPointerCapture === 'function') {
+    try { sliceBoard.setPointerCapture(event.pointerId); } catch {}
+  }
+  updateSliceCutFromEvent(event);
+}
+
+function handleSlicePointerMove(event) {
+  if (state.currentMode !== 'slice' || !state.slice.isDragging || state.phase !== 'playing') return;
+  updateSliceCutFromEvent(event);
+}
+
+function handleSlicePointerUp(event) {
+  if (state.currentMode !== 'slice') return;
+  if (state.slice.isDragging) updateSliceCutFromEvent(event);
+  state.slice.isDragging = false;
+  if (typeof sliceBoard.releasePointerCapture === 'function') {
+    try { if (sliceBoard.hasPointerCapture?.(event.pointerId)) sliceBoard.releasePointerCapture(event.pointerId); } catch {}
+  }
+}
+
+function handleSlicePointerCancel(event) {
+  handleSlicePointerUp(event);
+}
+
+function updateSliceCutFromEvent(event) {
+  const rect = sliceBoard.getBoundingClientRect();
+  const x = ((event.clientX - rect.left) / rect.width) * 100;
+  state.slice.cutX = clamp(x, 12, 88);
+  renderSliceBoard();
+}
+
+function beginSliceRound() {
+  if (state.round === 0 && state.roundScores.length === 0) restartButton.classList.add('hidden');
+  if (state.roundScores.length >= TOTAL_ROUNDS) {
+    finishGame();
+    return;
+  }
+
+  state.phase = 'playing';
+  state.round = state.roundScores.length + 1;
+  state.slice.currentShape = generateSliceShape();
+  state.slice.cutX = 50;
+  roundDisplay.textContent = `${state.round} / ${TOTAL_ROUNDS}`;
+  statusMessage.textContent = `Round ${state.round}: drag the cut line and try to split the shape 50:50.`;
+  lastResult.textContent = 'The closer to a perfect half, the better.';
+  sliceSubmitButton.textContent = 'Lock cut';
+  renderSliceBoard();
+}
+
+function submitSliceCut() {
+  if (!state.slice.currentShape) return;
+
+  const totalArea = Math.abs(polygonArea(state.slice.currentShape));
+  const leftPoly = clipPolygonAgainstVerticalLine(state.slice.currentShape, state.slice.cutX, 'left');
+  const leftArea = Math.abs(polygonArea(leftPoly));
+  const leftRatio = totalArea > 0 ? leftArea / totalArea : 0.5;
+  const deviationPercent = Math.abs(leftRatio - 0.5) * 200;
+  const score = Math.round(deviationPercent * 100);
+
+  state.roundScores.push(score);
+  state.phase = 'idle';
+  if (score <= SLICE_PERFECT_THRESHOLD_BPS) state.perfectCuts += 1;
+
+  const leftPct = (leftRatio * 100).toFixed(1);
+  const rightPct = ((1 - leftRatio) * 100).toFixed(1);
+  lastResult.textContent = `Round ${state.round}: ${leftPct}% / ${rightPct}% split, ${formatScore(score)}.`;
+  updateAverageDisplay();
+  updateSupportDisplay();
+  statusMessage.textContent = state.roundScores.length === TOTAL_ROUNDS
+    ? 'Run complete.'
+    : 'Nice cut. Tap Next shape when you want another one.';
+  sliceSubmitButton.textContent = state.roundScores.length === TOTAL_ROUNDS ? getModeConfig().resultsLabel : getModeConfig().nextLabel;
+
+  if (score <= 250) {
+    celebrate({ intensity: score <= 100 ? 'big' : 'medium' });
+  }
+
+  if (state.roundScores.length === TOTAL_ROUNDS) {
     finishGame();
   }
 }
@@ -314,48 +514,60 @@ async function finishGame() {
   state.phase = 'finished';
   state.runCounter += 1;
   state.pendingEntry = null;
-  statusMessage.textContent = average < 260
-    ? 'Ridiculously fast.'
-    : average < 340
-      ? 'Sharp reflexes.'
-      : 'Solid run.';
 
-  state.lastCompletedAverage = average;
+  if (state.currentMode === 'tap') {
+    statusMessage.textContent = average < 260 ? 'Ridiculously fast.' : average < 340 ? 'Sharp reflexes.' : 'Solid run.';
+    lastResult.textContent = state.penaltyTotal > 0
+      ? `Final average: ${formatScore(average)} across ${TOTAL_ROUNDS} rounds, including +${state.penaltyTotal} ms total in penalties.`
+      : `Final average: ${formatScore(average)} across ${TOTAL_ROUNDS} rounds.`;
+    setArenaState('idle', getModeConfig().resultsLabel);
+  } else {
+    statusMessage.textContent = average <= 150 ? 'That was surgical.' : average <= 300 ? 'Clean slicing.' : 'Not bad. You can get even closer.';
+    lastResult.textContent = `Final average: ${formatScore(average)} across ${TOTAL_ROUNDS} cuts. Perfect cuts: ${state.perfectCuts}.`;
+    sliceSubmitButton.textContent = getModeConfig().resultsLabel;
+  }
+
+  state.lastCompletedScore = average;
   updateAverageDisplay(average);
   updateShareChallengeButton();
-  lastResult.textContent = state.penaltyTotal > 0
-    ? `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds, including +${state.penaltyTotal} ms total in penalties.`
-    : `Final average: ${average} ms across ${TOTAL_ROUNDS} rounds.`;
-  setArenaState('idle', 'Play again');
   restartButton.classList.remove('hidden');
 
-  if (average <= CELEBRATION_GOOD_SCORE_MS) {
+  if (state.currentMode === 'tap' && average <= CELEBRATION_GOOD_SCORE_MS) {
     celebrate({ intensity: average < 260 ? 'big' : 'medium' });
   }
 
-  if (state.bestAverage === null || average < state.bestAverage) {
-    state.bestAverage = average;
-    localStorage.setItem(STORAGE_KEY, String(average));
-    bestDisplay.textContent = `${average} ms`;
+  if (state.bestScores[state.currentMode] === null || average < state.bestScores[state.currentMode]) {
+    state.bestScores[state.currentMode] = average;
+    saveBestScore(state.currentMode, average);
+    updateBestDisplay();
   }
 
   await maybeQualifyForLeaderboard(average);
 }
 
+function handleRestart() {
+  resetGame();
+}
+
 function resetGame() {
-  clearTimeout(state.timeoutId);
+  clearTimeout(state.tap.timeoutId);
   state.phase = 'idle';
   state.round = 0;
-  state.timeoutId = null;
-  state.reactionStart = 0;
-  state.scores = [];
+  state.tap.timeoutId = null;
+  state.tap.reactionStart = 0;
+  state.tap.activePointerId = null;
+  state.roundScores = [];
   state.penaltyTotal = 0;
+  state.perfectCuts = 0;
   state.pendingEntry = null;
-  state.lastCompletedAverage = null;
+  state.lastCompletedScore = null;
+  state.slice.currentShape = null;
+  state.slice.cutX = 50;
+  state.slice.isDragging = false;
   roundDisplay.textContent = `0 / ${TOTAL_ROUNDS}`;
   updateAverageDisplay(0);
-  updatePenaltyDisplay();
-  statusMessage.textContent = 'Press and hold when you\'re ready.';
+  updateSupportDisplay();
+  statusMessage.textContent = getModeConfig().statusIdle;
   lastResult.textContent = 'No rounds played yet.';
   restartButton.classList.add('hidden');
   leaderboardForm.classList.add('hidden');
@@ -364,7 +576,13 @@ function resetGame() {
   initialsInput.value = state.rememberedName || '';
   setSaveState(false);
   updateShareChallengeButton();
-  setArenaState('idle', 'Hold to start');
+  updateModeUI();
+  if (state.currentMode === 'tap') {
+    setArenaState('idle', getModeConfig().startLabel);
+  } else {
+    sliceSubmitButton.textContent = getModeConfig().startLabel;
+    renderSliceBoard();
+  }
   renderLeaderboards();
 }
 
@@ -381,9 +599,7 @@ function showIntro() {
 function dismissIntro(markSeen = false) {
   introModal.classList.add('hidden');
   document.body.classList.remove('modal-open');
-  if (markSeen) {
-    localStorage.setItem(INTRO_SEEN_KEY, '1');
-  }
+  if (markSeen) localStorage.setItem(INTRO_SEEN_KEY, '1');
 }
 
 function getAverage(values) {
@@ -391,16 +607,27 @@ function getAverage(values) {
 }
 
 function getScoreAverage() {
-  if (!state.scores.length) return 0;
-  const totalReaction = state.scores.reduce((sum, value) => sum + value, 0);
-  return (totalReaction + state.penaltyTotal) / state.scores.length;
+  if (!state.roundScores.length) return 0;
+  if (state.currentMode === 'tap') {
+    const totalReaction = state.roundScores.reduce((sum, value) => sum + value, 0);
+    return (totalReaction + state.penaltyTotal) / state.roundScores.length;
+  }
+  return getAverage(state.roundScores);
 }
 
-function loadBestAverage() {
-  const raw = localStorage.getItem(STORAGE_KEY);
+function getBestKey(mode) {
+  return `${STORAGE_KEY_PREFIX}:${mode}`;
+}
+
+function loadBestScore(mode) {
+  const raw = localStorage.getItem(getBestKey(mode));
   if (!raw) return null;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function saveBestScore(mode, score) {
+  localStorage.setItem(getBestKey(mode), String(score));
 }
 
 function loadRememberedName() {
@@ -413,15 +640,9 @@ function readChallengeContext() {
   const params = new URLSearchParams(window.location.search);
   const score = Number(params.get('challenge'));
   const challenger = sanitizeInitials(params.get('challenger') || '') || DEFAULT_CHALLENGER_NAME;
-
-  if (!Number.isFinite(score) || score <= 0) {
-    return null;
-  }
-
-  return {
-    score: Math.round(score),
-    challenger
-  };
+  const mode = params.get('mode') && GAME_MODES[params.get('mode')] ? params.get('mode') : 'tap';
+  if (!Number.isFinite(score) || score < 0) return null;
+  return { score: Math.round(score), challenger, mode };
 }
 
 function rememberName(name) {
@@ -432,37 +653,36 @@ function rememberName(name) {
 }
 
 function updateBestDisplay() {
-  bestDisplay.textContent = state.bestAverage === null ? '—' : `${state.bestAverage} ms`;
+  const best = state.bestScores[state.currentMode];
+  bestDisplay.textContent = best === null ? '—' : formatScore(best);
 }
 
 function updateAverageDisplay(overrideValue = null) {
   const value = overrideValue ?? getScoreAverage();
-  averageDisplay.textContent = `${Math.round(value)} ms`;
+  averageDisplay.textContent = formatScore(value);
 }
 
-function updatePenaltyDisplay() {
-  penaltyDisplay.textContent = `+${state.penaltyTotal} ms`;
+function updateSupportDisplay() {
+  penaltyDisplay.textContent = getModeConfig().supportDisplay(state);
 }
 
 function updateShareChallengeButton() {
-  if (state.lastCompletedAverage === null) {
+  if (state.lastCompletedScore === null) {
     shareChallengeButton.classList.add('hidden');
     return;
   }
-
   shareChallengeButton.classList.remove('hidden');
 }
 
 function renderChallengeBanner() {
   const challenge = state.challengeContext;
-  if (!challenge) {
+  if (!challenge || challenge.mode !== state.currentMode) {
     challengeBanner.classList.add('hidden');
     challengeBanner.textContent = '';
     return;
   }
-
   challengeBanner.classList.remove('hidden');
-  challengeBanner.textContent = `${challenge.challenger} challenged you to beat ${challenge.score} ms. Think you can top it?`;
+  challengeBanner.textContent = getModeConfig().challengeText(challenge.challenger, challenge.score);
 }
 
 function setSaveState(isSaving) {
@@ -474,6 +694,7 @@ function setSaveState(isSaving) {
 function emptyLeaderboardPayload() {
   return {
     generatedAt: null,
+    mode: state.currentMode,
     leaderboards: Object.fromEntries(
       Object.entries(BOARD_DEFINITIONS).map(([key, definition]) => [key, {
         key,
@@ -489,22 +710,16 @@ function normalizeLeaderboardPayload(payload) {
   if (payload && payload.leaderboards && payload.leaderboards.daily && payload.leaderboards.weekly && payload.leaderboards.allTime) {
     return {
       generatedAt: payload.generatedAt || null,
+      mode: payload.mode || state.currentMode,
       leaderboards: payload.leaderboards
     };
   }
-
-  if (payload && Array.isArray(payload.entries)) {
-    const fallback = emptyLeaderboardPayload();
-    fallback.leaderboards.daily.entries = payload.entries;
-    return fallback;
-  }
-
   return emptyLeaderboardPayload();
 }
 
 async function refreshLeaderboard() {
   try {
-    const response = await fetch('/api/leaderboard', {
+    const response = await fetch(`/api/leaderboard?mode=${encodeURIComponent(state.currentMode)}`, {
       headers: { 'cache-control': 'no-cache' }
     });
     if (!response.ok) throw new Error('Could not load leaderboard');
@@ -540,24 +755,21 @@ function renderLeaderboards() {
       item.innerHTML = `
         <span class="leaderboard-rank">#${index + 1}</span>
         <span class="leaderboard-name">${entry.name}</span>
-        <strong class="leaderboard-score">${entry.score} ms</strong>
+        <strong class="leaderboard-score">${formatScore(entry.score)}</strong>
       `;
       elements.list.appendChild(item);
     });
   });
 
-  if (!state.pendingEntry) {
-    leaderboardForm.classList.add('hidden');
-  }
+  if (!state.pendingEntry) leaderboardForm.classList.add('hidden');
 }
 
 function renderPodium() {
   const entries = state.leaderboards.leaderboards.allTime?.entries || [];
-
   podiumElements.forEach((slot, index) => {
     const entry = entries[index] || null;
     slot.name.textContent = entry?.name || '---';
-    slot.score.textContent = entry ? `${entry.score} ms` : 'Open spot';
+    slot.score.textContent = entry ? formatScore(entry.score) : 'Open spot';
   });
 }
 
@@ -575,8 +787,8 @@ async function maybeQualifyForLeaderboard(score) {
     state.pendingEntry = {
       score,
       qualifyingKeys,
-      runId: state.runCounter,
-      submitted: false
+      submitted: false,
+      mode: state.currentMode
     };
 
     if (state.rememberedName) {
@@ -585,11 +797,9 @@ async function maybeQualifyForLeaderboard(score) {
       return;
     }
 
-    qualifyingScore.textContent = `${score} ms`;
+    qualifyingScore.textContent = formatScore(score);
     qualifyingBoards.textContent = humanizeBoardNames(qualifyingKeys);
-    leaderboardMessage.textContent = qualifyingKeys.length === 1
-      ? `You cracked the ${humanizeBoardNames(qualifyingKeys)} board. Add your 3-letter name.`
-      : `You landed on the ${humanizeBoardNames(qualifyingKeys)} boards. Add your 3-letter name.`;
+    leaderboardMessage.textContent = getModeConfig().qualifyingMessage(qualifyingKeys);
     leaderboardForm.classList.remove('hidden');
     initialsInput.value = state.rememberedName || '';
     initialsInput.focus();
@@ -598,26 +808,23 @@ async function maybeQualifyForLeaderboard(score) {
 
   leaderboardForm.classList.add('hidden');
   qualifyingBoards.textContent = '';
-  leaderboardMessage.textContent = `Score ${score} ms did not reach the live leaderboards.`;
+  leaderboardMessage.textContent = `${formatScore(score)} did not reach the live leaderboards.`;
 }
 
 async function handleLeaderboardSubmit(event) {
   event.preventDefault();
   if (!state.pendingEntry) return;
-
   const name = sanitizeInitials(initialsInput.value);
   if (name.length !== 3) {
     leaderboardMessage.textContent = 'Enter exactly 3 letters.';
     initialsInput.focus();
     return;
   }
-
   await submitLeaderboardEntry(name);
 }
 
 async function submitLeaderboardEntry(name) {
   if (!state.pendingEntry || state.isSavingScore || state.pendingEntry.submitted) return;
-
   const pending = state.pendingEntry;
   pending.submitted = true;
   setSaveState(true);
@@ -625,12 +832,11 @@ async function submitLeaderboardEntry(name) {
   try {
     const response = await fetch('/api/leaderboard', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
-        score: pending.score
+        score: pending.score,
+        mode: pending.mode
       })
     });
 
@@ -647,25 +853,21 @@ async function submitLeaderboardEntry(name) {
     }
 
     rememberName(name);
-
     const acceptedBoards = Array.isArray(payload.acceptedBoards) && payload.acceptedBoards.length
       ? payload.acceptedBoards
       : pending.qualifyingKeys;
 
     celebrate({ intensity: acceptedBoards.includes('allTime') ? 'big' : 'medium' });
-
     leaderboardMessage.textContent = acceptedBoards.length === 1
-      ? `${state.rememberedName} added with ${pending.score} ms to the ${humanizeBoardNames(acceptedBoards)} board.`
-      : `${state.rememberedName} added with ${pending.score} ms to the ${humanizeBoardNames(acceptedBoards)} boards.`;
+      ? `${state.rememberedName} added with ${formatScore(pending.score)} to the ${humanizeBoardNames(acceptedBoards)} board.`
+      : `${state.rememberedName} added with ${formatScore(pending.score)} to the ${humanizeBoardNames(acceptedBoards)} boards.`;
     leaderboardForm.classList.add('hidden');
     state.pendingEntry = null;
     qualifyingBoards.textContent = '';
     initialsInput.value = state.rememberedName || '';
     renderLeaderboards();
   } catch {
-    if (state.pendingEntry === pending) {
-      pending.submitted = false;
-    }
+    if (state.pendingEntry === pending) pending.submitted = false;
     leaderboardMessage.textContent = 'Could not save score right now.';
   } finally {
     setSaveState(false);
@@ -680,23 +882,21 @@ function humanizeBoardNames(keys) {
 }
 
 function sanitizeInitials(value) {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
 }
 
 function buildChallengeSharePayload() {
-  if (state.lastCompletedAverage === null) return null;
-
+  if (state.lastCompletedScore === null) return null;
   const challenger = state.rememberedName || DEFAULT_CHALLENGER_NAME;
   const url = new URL(window.location.href);
-  url.searchParams.set('challenge', String(Math.round(state.lastCompletedAverage)));
+  url.searchParams.set('challenge', String(Math.round(state.lastCompletedScore)));
   url.searchParams.set('challenger', challenger);
+  url.searchParams.set('mode', state.currentMode);
 
-  const score = Math.round(state.lastCompletedAverage);
-  const title = 'Tap Flash challenge';
-  const text = `${challenger} just threw down a Tap Flash challenge: beat ${score} ms.`;
-
+  const score = Math.round(state.lastCompletedScore);
+  const text = getModeConfig().shareText(challenger, score, url.toString());
   return {
-    title,
+    title: `${getModeConfig().label} challenge`,
     text,
     url: url.toString()
   };
@@ -709,19 +909,19 @@ async function handleShareChallenge() {
   try {
     if (navigator.share) {
       await navigator.share(payload);
-      lastResult.textContent = `Challenge ready — now let’s see who can beat ${Math.round(state.lastCompletedAverage)} ms.`;
+      lastResult.textContent = state.currentMode === 'tap'
+        ? `Challenge ready. Now let’s see who can beat ${formatScore(state.lastCompletedScore)}.`
+        : `Challenge ready. Now let’s see who can get closer than ${formatScore(state.lastCompletedScore)}.`;
       return;
     }
 
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
+      await navigator.clipboard.writeText(payload.text);
       lastResult.textContent = 'Challenge link copied. Send it to a friend and make them sweat.';
       return;
     }
   } catch (error) {
-    if (error?.name === 'AbortError') {
-      return;
-    }
+    if (error?.name === 'AbortError') return;
   }
 
   lastResult.textContent = payload.url;
@@ -730,7 +930,6 @@ async function handleShareChallenge() {
 function celebrate({ intensity = 'medium' } = {}) {
   const count = intensity === 'big' ? 42 : 26;
   const colors = ['#7c3aed', '#22c55e', '#f59e0b', '#38bdf8', '#fb7185', '#facc15'];
-
   for (let index = 0; index < count; index += 1) {
     const piece = document.createElement('span');
     piece.className = 'confetti-piece';
@@ -741,29 +940,19 @@ function celebrate({ intensity = 'medium' } = {}) {
     piece.style.setProperty('--delay', `${Math.random() * 0.18}s`);
     piece.style.setProperty('--size', `${8 + Math.random() * 10}px`);
     piece.style.background = colors[index % colors.length];
-    if (Math.random() > 0.55) {
-      piece.style.borderRadius = '999px';
-    }
-
+    if (Math.random() > 0.55) piece.style.borderRadius = '999px';
     celebrationLayer.appendChild(piece);
     window.setTimeout(() => piece.remove(), 4200);
   }
 }
 
 function ensureAudio() {
-  if (!window.AudioContext && !window.webkitAudioContext) {
-    return null;
-  }
-
+  if (!window.AudioContext && !window.webkitAudioContext) return null;
   if (!audioState.context) {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     audioState.context = new AudioCtx();
   }
-
-  if (audioState.context.state === 'suspended') {
-    audioState.context.resume().catch(() => {});
-  }
-
+  if (audioState.context.state === 'suspended') audioState.context.resume().catch(() => {});
   audioState.enabled = true;
   return audioState.context;
 }
@@ -771,28 +960,112 @@ function ensureAudio() {
 function playTone(type) {
   const context = ensureAudio();
   if (!context) return;
-
   const presets = {
     ready: { frequency: 880, duration: 0.12, volume: 0.03, wave: 'sine' },
     tap: { frequency: 660, duration: 0.08, volume: 0.05, wave: 'triangle' },
-    early: { frequency: 220, duration: 0.16, volume: 0.04, wave: 'sawtooth' }
+    early: { frequency: 220, duration: 0.16, volume: 0.04, wave: 'sawtooth' },
+    slice: { frequency: 520, duration: 0.12, volume: 0.04, wave: 'square' }
   };
-
   const preset = presets[type];
   if (!preset) return;
-
   const now = context.currentTime;
   const oscillator = context.createOscillator();
   const gainNode = context.createGain();
-
   oscillator.type = preset.wave;
   oscillator.frequency.setValueAtTime(preset.frequency, now);
   gainNode.gain.setValueAtTime(0.0001, now);
   gainNode.gain.exponentialRampToValueAtTime(preset.volume, now + 0.01);
   gainNode.gain.exponentialRampToValueAtTime(0.0001, now + preset.duration);
-
   oscillator.connect(gainNode);
   gainNode.connect(context.destination);
   oscillator.start(now);
   oscillator.stop(now + preset.duration + 0.02);
+}
+
+function formatScore(score, mode = state.currentMode) {
+  return getModeConfig(mode).formatScore(score);
+}
+
+function renderSliceBoard() {
+  const shape = state.slice.currentShape;
+  if (!shape) {
+    sliceShape.setAttribute('points', '');
+    sliceCutLine.setAttribute('x1', 50);
+    sliceCutLine.setAttribute('x2', 50);
+    return;
+  }
+  sliceShape.setAttribute('points', shape.map((point) => `${point.x},${point.y}`).join(' '));
+  sliceCutLine.setAttribute('x1', state.slice.cutX);
+  sliceCutLine.setAttribute('x2', state.slice.cutX);
+}
+
+function generateSliceShape() {
+  const points = [];
+  const centerX = 50;
+  const centerY = 52;
+  const vertexCount = 9 + Math.floor(Math.random() * 4);
+  for (let index = 0; index < vertexCount; index += 1) {
+    const angle = (-Math.PI / 2) + (Math.PI * 2 * index / vertexCount);
+    const radius = 25 + Math.random() * 16;
+    const x = clamp(centerX + Math.cos(angle) * radius, 10, 90);
+    const y = clamp(centerY + Math.sin(angle) * radius, 10, 90);
+    points.push({ x, y });
+  }
+  return points;
+}
+
+function polygonArea(points) {
+  if (!points || points.length < 3) return 0;
+  let area = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    area += current.x * next.y - next.x * current.y;
+  }
+  return area / 2;
+}
+
+function clipPolygonAgainstVerticalLine(points, xCut, side) {
+  if (!points || points.length < 3) return [];
+  const isInside = (point) => side === 'left' ? point.x <= xCut : point.x >= xCut;
+  const output = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    const currentInside = isInside(current);
+    const nextInside = isInside(next);
+
+    if (currentInside && nextInside) {
+      output.push(next);
+      continue;
+    }
+
+    if (currentInside && !nextInside) {
+      output.push(intersectVertical(current, next, xCut));
+      continue;
+    }
+
+    if (!currentInside && nextInside) {
+      output.push(intersectVertical(current, next, xCut));
+      output.push(next);
+    }
+  }
+  return dedupePolygon(output);
+}
+
+function intersectVertical(a, b, xCut) {
+  if (a.x === b.x) return { x: xCut, y: a.y };
+  const t = (xCut - a.x) / (b.x - a.x);
+  return { x: xCut, y: a.y + ((b.y - a.y) * t) };
+}
+
+function dedupePolygon(points) {
+  return points.filter((point, index) => {
+    const prev = points[index - 1];
+    return !prev || Math.abs(prev.x - point.x) > 0.001 || Math.abs(prev.y - point.y) > 0.001;
+  });
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }

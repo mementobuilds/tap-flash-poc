@@ -8,14 +8,14 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Tap Flash" />
     <meta property="og:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
-    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260418-1918" />
+    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-1934" />
     <meta property="og:image:alt" content="Tap Flash social preview card" />
     <meta property="og:url" content="https://tap-flash-web-production.up.railway.app/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Tap Flash" />
     <meta name="twitter:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
-    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260418-1918" />
-    <link rel="stylesheet" href="/styles.css?v=20260418-1918" />
+    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-1934" />
+    <link rel="stylesheet" href="/styles.css?v=20260419-1934" />
     <script src="https://itbroke.dev/itbroke.js" async></script>
     <script async src="https://jam.pieter.com/2026/widget.js"></script>
     <!-- Google Tag Manager -->
@@ -44,7 +44,7 @@
         <div class="intro-points">
           <div>
             <strong>How to play</strong>
-            <p class="helper-text">Wait for the flash, then tap as fast as you can. Early taps add a penalty.</p>
+            <p class="helper-text">Pick a mode: Tap Flash is hold-and-release reflex timing, and Split Fifty is all about cutting a shape as close to 50:50 as you can.</p>
           </div>
           <div>
             <strong>Why it exists</strong>
@@ -67,10 +67,10 @@
 
       <section class="panel hero">
         <div class="hero-copy">
-          <p class="label">Self-improving reaction game</p>
-          <h2>Wait for the flash. Then tap fast.</h2>
+          <p class="label">Self-improving browser arcade</p>
+          <h2>Tap fast or split clean.</h2>
           <p class="subtle">
-            Play a run, see how fast you are, then leave feedback and help shape what Tap Flash becomes next. This project is built to evolve in public.
+            Tap Flash now has two live game modes. Chase a fast reaction score, or try to cut a shape as close to 50:50 as possible. Then leave feedback and help shape what comes next.
           </p>
           <div class="hero-actions">
             <button id="reopenIntroButton" class="ghost-button" type="button">What is this?</button>
@@ -118,11 +118,11 @@
           <p class="subtle">Play it, break it, leave feedback, and watch the next version land.</p>
         </div>
         <ol>
-          <li>Press and hold <strong>Start game</strong>.</li>
-          <li>Keep holding through the dark phase.</li>
-          <li>When <strong>TAP</strong> appears, release as fast as you can.</li>
-          <li>Releasing early adds a +100 ms penalty.</li>
-          <li>Finish all 5 rounds to get your average.</li>
+          <li>Choose a mode: <strong>Tap Flash</strong> or <strong>Split Fifty</strong>.</li>
+          <li>In Tap Flash, press and hold, then release when <strong>TAP</strong> appears.</li>
+          <li>In Split Fifty, drag the cut line and try to split the shape as close to 50:50 as possible.</li>
+          <li>Tap Flash early releases add a +100 ms penalty.</li>
+          <li>Each mode runs for 5 rounds and tracks its own score.</li>
           <li>If your score cracks a live board, add your 3-letter name.</li>
           <li>This game is part of a continuous product loop: users leave feedback, the Tap Flash Pi Agent reads it, memento approves changes, and new versions get shipped live.</li>
           <li>Want to help shape it? Jump to the VCL feedback tab and leave your thoughts there.</li>
@@ -130,22 +130,26 @@
       </section>
 
       <section class="panel arena-panel">
+        <div class="mode-switch" role="tablist" aria-label="Game mode switcher">
+          <button id="modeTapButton" class="mode-pill active" type="button" role="tab" aria-selected="true">Tap Flash</button>
+          <button id="modeSliceButton" class="mode-pill" type="button" role="tab" aria-selected="false">Split Fifty</button>
+        </div>
         <div class="arena-stats-wrap">
           <div class="stats-grid arena-stats" aria-label="Game stats">
             <article class="stat-card compact-stat">
-              <span class="stat-label">Round</span>
+              <span id="roundLabel" class="stat-label">Round</span>
               <strong id="roundDisplay">0 / 5</strong>
             </article>
             <article class="stat-card compact-stat">
-              <span class="stat-label">Average</span>
+              <span id="averageLabel" class="stat-label">Average</span>
               <strong id="averageDisplay">0 ms</strong>
             </article>
             <article class="stat-card compact-stat">
-              <span class="stat-label">Best ever</span>
+              <span id="bestLabel" class="stat-label">Best ever</span>
               <strong id="bestDisplay">—</strong>
             </article>
             <article class="stat-card compact-stat">
-              <span class="stat-label">Penalties</span>
+              <span id="penaltyLabel" class="stat-label">Penalties</span>
               <strong id="penaltyDisplay">+0 ms</strong>
             </article>
           </div>
@@ -153,6 +157,18 @@
         <div id="challengeBanner" class="challenge-banner hidden" aria-live="polite"></div>
         <div id="statusMessage" class="status-message">Press and hold when you’re ready.</div>
         <button id="arenaButton" class="arena idle" type="button">Hold to start</button>
+        <div id="sliceArena" class="slice-arena hidden">
+          <div class="slice-topline">
+            <p class="helper-text">Drag the cut line, then lock it in.</p>
+            <button id="sliceSubmitButton" class="ghost-button" type="button">Lock cut</button>
+          </div>
+          <div id="sliceBoard" class="slice-board" aria-label="Split Fifty board">
+            <svg id="sliceSvg" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon id="sliceShape" points="" />
+              <line id="sliceCutLine" x1="50" y1="8" x2="50" y2="92" />
+            </svg>
+          </div>
+        </div>
         <div class="helper-row">
           <span id="lastResult" class="helper-text">No rounds played yet.</span>
           <div class="helper-actions">
@@ -227,6 +243,6 @@
       </footer>
     </main>
 
-    <script src="/app.js?v=20260418-1918"></script>
+    <script src="/app.js?v=20260419-1934"></script>
   </body>
 </html>

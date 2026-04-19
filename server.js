@@ -12,6 +12,16 @@ const legacyLeaderboardPath = path.join(localStateDir, 'leaderboard.json');
 const LEADERBOARD_LIMIT = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
+const GAME_MODES = {
+  tap: {
+    key: 'tap',
+    label: 'Tap Flash'
+  },
+  slice: {
+    key: 'slice',
+    label: 'Split Fifty'
+  }
+};
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -72,17 +82,23 @@ function toIsoDate(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function sanitizeMode(value) {
+  const normalized = String(value || 'tap').toLowerCase();
+  return GAME_MODES[normalized] ? normalized : 'tap';
+}
+
 function sanitizeEntry(entry) {
   if (!entry || typeof entry.name !== 'string') return null;
   const score = Number(entry.score);
   const createdAt = toIsoDate(entry.createdAt || new Date().toISOString());
-  if (!createdAt || !Number.isFinite(score) || score <= 0) return null;
+  if (!createdAt || !Number.isFinite(score) || score < 0) return null;
 
   const name = String(entry.name).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
   if (name.length !== 3) return null;
 
   return {
     id: typeof entry.id === 'string' && entry.id ? entry.id : crypto.randomUUID(),
+    mode: sanitizeMode(entry.mode),
     name,
     score: Math.round(score),
     createdAt
@@ -153,9 +169,15 @@ function sortEntries(entries) {
   return [...entries].sort((a, b) => a.score - b.score || a.createdAt.localeCompare(b.createdAt));
 }
 
-function buildLeaderboardPayload(store, now = new Date()) {
+function buildLeaderboardPayload(store, mode = 'tap', now = new Date()) {
   const nowMs = now.getTime();
-  const scores = sortEntries((store?.scores || []).map(sanitizeEntry).filter(Boolean));
+  const normalizedMode = sanitizeMode(mode);
+  const scores = sortEntries(
+    (store?.scores || [])
+      .map(sanitizeEntry)
+      .filter(Boolean)
+      .filter((entry) => entry.mode === normalizedMode)
+  );
 
   const leaderboards = Object.fromEntries(
     Object.entries(boardDefinitions).map(([key, definition]) => {
@@ -174,6 +196,8 @@ function buildLeaderboardPayload(store, now = new Date()) {
 
   return {
     generatedAt: now.toISOString(),
+    mode: normalizedMode,
+    modeLabel: GAME_MODES[normalizedMode].label,
     leaderboards
   };
 }
@@ -189,9 +213,10 @@ function qualifyingBoards(score, leaderboardPayload) {
     .map(([key]) => key);
 }
 
-function addLeaderboardEntry(name, score) {
+function addLeaderboardEntry(name, score, mode = 'tap') {
+  const normalizedMode = sanitizeMode(mode);
   const store = readLeaderboardStore();
-  const currentBoards = buildLeaderboardPayload(store);
+  const currentBoards = buildLeaderboardPayload(store, normalizedMode);
   const qualifiesFor = qualifyingBoards(score, currentBoards);
 
   if (!qualifiesFor.length) {
@@ -204,6 +229,7 @@ function addLeaderboardEntry(name, score) {
 
   const entry = sanitizeEntry({
     id: crypto.randomUUID(),
+    mode: normalizedMode,
     name,
     score,
     createdAt: new Date().toISOString()
@@ -212,7 +238,7 @@ function addLeaderboardEntry(name, score) {
   store.scores.push(entry);
   writeLeaderboardStore(store);
 
-  const leaderboards = buildLeaderboardPayload(store);
+  const leaderboards = buildLeaderboardPayload(store, normalizedMode);
   const acceptedBoards = Object.entries(leaderboards.leaderboards)
     .filter(([, board]) => board.entries.some((boardEntry) => boardEntry.id === entry.id))
     .map(([key]) => key);
@@ -277,7 +303,8 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
   if (url.pathname === '/api/leaderboard' && method === 'GET') {
-    return sendJson(res, 200, buildLeaderboardPayload(readLeaderboardStore()));
+    const mode = sanitizeMode(url.searchParams.get('mode') || 'tap');
+    return sendJson(res, 200, buildLeaderboardPayload(readLeaderboardStore(), mode));
   }
 
   if (url.pathname === '/api/leaderboard' && method === 'POST') {
@@ -285,15 +312,16 @@ const server = http.createServer(async (req, res) => {
       const payload = await collectJson(req);
       const name = String(payload.name || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
       const score = Number(payload.score);
+      const mode = sanitizeMode(payload.mode || 'tap');
 
       if (name.length !== 3) {
         return sendJson(res, 400, { error: 'Name must be exactly 3 characters.' });
       }
-      if (!Number.isFinite(score) || score <= 0) {
-        return sendJson(res, 400, { error: 'Score must be a positive number.' });
+      if (!Number.isFinite(score) || score < 0) {
+        return sendJson(res, 400, { error: 'Score must be zero or a positive number.' });
       }
 
-      const result = addLeaderboardEntry(name, Math.round(score));
+      const result = addLeaderboardEntry(name, Math.round(score), mode);
       if (!result.accepted) {
         return sendJson(res, 409, {
           error: 'Score no longer qualifies for the live top 10 boards.',
