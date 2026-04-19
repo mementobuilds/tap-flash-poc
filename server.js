@@ -292,7 +292,7 @@ function sendFile(res, filePath) {
     const ext = path.extname(filePath).toLowerCase();
     res.writeHead(200, {
       'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600'
+      'Cache-Control': ext === '.html' ? 'no-store, max-age=0' : 'public, max-age=3600'
     });
     res.end(data);
   });

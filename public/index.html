@@ -8,14 +8,14 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Tap Flash" />
     <meta property="og:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
-    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-2019" />
+    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-2043" />
     <meta property="og:image:alt" content="Tap Flash social preview card" />
     <meta property="og:url" content="https://tap-flash-web-production.up.railway.app/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Tap Flash" />
     <meta name="twitter:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
-    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-2019" />
-    <link rel="stylesheet" href="/styles.css?v=20260419-2019" />
+    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-2043" />
+    <link rel="stylesheet" href="/styles.css?v=20260419-2043" />
     <script src="https://itbroke.dev/itbroke.js" async></script>
     <script async src="https://jam.pieter.com/2026/widget.js"></script>
     <!-- Google Tag Manager -->
@@ -65,75 +65,24 @@
         </div>
       </header>
 
-      <section class="panel hero">
-        <div class="hero-copy">
-          <p class="label">Self-improving browser arcade</p>
-          <h2>Tap fast or split clean.</h2>
-          <p class="subtle">
-            Tap Flash now has two live game modes. Chase a fast reaction score, or try to cut a shape as close to 50:50 as possible. Then leave feedback and help shape what comes next.
-          </p>
+      <section class="panel launchbar">
+        <div class="launchbar-copy">
+          <div>
+            <p class="label">Choose a game</p>
+            <h2>Pick a mode and jump in.</h2>
+          </div>
           <div class="hero-actions">
-            <button id="reopenIntroButton" class="ghost-button" type="button">What is this?</button>
+            <button id="reopenIntroButton" class="ghost-button" type="button">How to play</button>
             <a class="ghost-button project-link-button" href="https://vibecodinglist.com/projects/tap-flash-self-improving-game?tab=feedback" target="_blank" rel="noopener noreferrer">Give feedback on VCL</a>
           </div>
         </div>
-      </section>
-
-      <section class="panel podium-panel" aria-labelledby="podiumTitle">
-        <div class="podium-header">
-          <div>
-            <p id="podiumEyebrow" class="label">Global podium</p>
-            <h3 id="podiumTitle">Top 3 all-time</h3>
-          </div>
-          <p id="podiumSubtitle" class="subtle">A quick look at the current global leaders.</p>
-        </div>
-        <div id="podiumGrid" class="podium-grid">
-          <article class="podium-place podium-silver">
-            <span class="podium-medal">🥈</span>
-            <span class="podium-rank-label">2nd</span>
-            <strong id="podiumName2">---</strong>
-            <span id="podiumScore2" class="podium-score">—</span>
-          </article>
-          <article class="podium-place podium-gold">
-            <span class="podium-medal">🥇</span>
-            <span class="podium-rank-label">1st</span>
-            <strong id="podiumName1">---</strong>
-            <span id="podiumScore1" class="podium-score">—</span>
-          </article>
-          <article class="podium-place podium-bronze">
-            <span class="podium-medal">🥉</span>
-            <span class="podium-rank-label">3rd</span>
-            <strong id="podiumName3">---</strong>
-            <span id="podiumScore3" class="podium-score">—</span>
-          </article>
-        </div>
-      </section>
-
-      <section class="panel instructions intro-instructions">
-        <div class="instructions-topline">
-          <div>
-            <p class="label">Start here</p>
-            <h3>How Tap Flash works</h3>
-          </div>
-          <p class="subtle">Play it, break it, leave feedback, and watch the next version land.</p>
-        </div>
-        <ol>
-          <li>Choose a mode: <strong>Tap Flash</strong> or <strong>Split Fifty</strong>.</li>
-          <li>In Tap Flash, press and hold, then release when <strong>TAP</strong> appears.</li>
-          <li>In Split Fifty, drag the cut line and try to split the shape as close to 50:50 as possible.</li>
-          <li>Tap Flash early releases add a +100 ms penalty.</li>
-          <li>Each mode runs for 5 rounds and tracks its own score.</li>
-          <li>If your score cracks a live board, add your 3-letter name.</li>
-          <li>This game is part of a continuous product loop: users leave feedback, the Tap Flash Pi Agent reads it, memento approves changes, and new versions get shipped live.</li>
-          <li>Want to help shape it? Jump to the VCL feedback tab and leave your thoughts there.</li>
-        </ol>
-      </section>
-
-      <section class="panel arena-panel">
-        <div class="mode-switch" role="tablist" aria-label="Game mode switcher">
+        <div class="mode-switch top-mode-switch" role="tablist" aria-label="Game mode switcher">
           <button id="modeTapButton" class="mode-pill active" type="button" role="tab" aria-selected="true">Tap Flash</button>
           <button id="modeSliceButton" class="mode-pill" type="button" role="tab" aria-selected="false">Split Fifty</button>
         </div>
+      </section>
+
+      <section class="panel arena-panel">
         <div class="arena-stats-wrap">
           <div class="stats-grid arena-stats" aria-label="Game stats">
             <article class="stat-card compact-stat">
@@ -176,6 +125,36 @@
             <button id="shareChallengeButton" class="ghost-button hidden" type="button">Share challenge</button>
             <button id="restartButton" class="ghost-button hidden" type="button">Play again</button>
           </div>
+        </div>
+      </section>
+
+      <section class="panel podium-panel" aria-labelledby="podiumTitle">
+        <div class="podium-header">
+          <div>
+            <p id="podiumEyebrow" class="label">Global podium</p>
+            <h3 id="podiumTitle">Top 3 all-time</h3>
+          </div>
+          <p id="podiumSubtitle" class="subtle">A quick look at the current global leaders.</p>
+        </div>
+        <div id="podiumGrid" class="podium-grid">
+          <article class="podium-place podium-silver">
+            <span class="podium-medal">🥈</span>
+            <span class="podium-rank-label">2nd</span>
+            <strong id="podiumName2">---</strong>
+            <span id="podiumScore2" class="podium-score">—</span>
+          </article>
+          <article class="podium-place podium-gold">
+            <span class="podium-medal">🥇</span>
+            <span class="podium-rank-label">1st</span>
+            <strong id="podiumName1">---</strong>
+            <span id="podiumScore1" class="podium-score">—</span>
+          </article>
+          <article class="podium-place podium-bronze">
+            <span class="podium-medal">🥉</span>
+            <span class="podium-rank-label">3rd</span>
+            <strong id="podiumName3">---</strong>
+            <span id="podiumScore3" class="podium-score">—</span>
+          </article>
         </div>
       </section>
 
@@ -243,6 +222,6 @@
       </footer>
     </main>
 
-    <script src="/app.js?v=20260419-2019"></script>
+    <script src="/app.js?v=20260419-2043"></script>
   </body>
 </html>

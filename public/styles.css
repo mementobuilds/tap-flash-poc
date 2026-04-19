@@ -114,6 +114,24 @@ h4 {
   justify-content: center;
 }
 
+.launchbar {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.launchbar-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.top-mode-switch {
+  width: 100%;
+}
+
 .hero-actions {
   margin-top: 0.35rem;
   display: flex;
@@ -678,7 +696,7 @@ h4 {
   }
 
   .topbar,
-  .hero,
+  .launchbar-copy,
   .helper-row,
   .helper-actions,
   .leaderboard-header,
