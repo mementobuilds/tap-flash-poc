@@ -667,6 +667,14 @@ h4 {
     grid-template-columns: 1fr;
   }
 
+  .mode-switch {
+    width: 100%;
+  }
+
+  .mode-pill {
+    flex: 1 1 0;
+  }
+
   .intro-points {
     grid-template-columns: 1fr;
   }

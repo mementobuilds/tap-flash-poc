@@ -226,6 +226,10 @@ function switchMode(mode) {
   updateModeUI();
   renderChallengeBanner();
   refreshLeaderboard();
+
+  if (mode === 'slice') {
+    beginSliceRound();
+  }
 }
 
 function updateModeUI() {
@@ -471,7 +475,9 @@ function beginSliceRound() {
   state.slice.cutX = 50;
   roundDisplay.textContent = `${state.round} / ${TOTAL_ROUNDS}`;
   statusMessage.textContent = `Round ${state.round}: drag the cut line and try to split the shape 50:50.`;
-  lastResult.textContent = 'The closer to a perfect half, the better.';
+  lastResult.textContent = state.round === 1 && state.roundScores.length === 0
+    ? 'Split Fifty is live. Drag the line, then tap Lock cut.'
+    : 'The closer to a perfect half, the better.';
   sliceSubmitButton.textContent = 'Lock cut';
   renderSliceBoard();
 }
