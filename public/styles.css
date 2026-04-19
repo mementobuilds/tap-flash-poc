@@ -261,7 +261,7 @@ h4 {
   gap: 1rem;
 }
 
-.slice-board {
+ .slice-board {
   min-height: 360px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -269,6 +269,7 @@ h4 {
     radial-gradient(circle at 50% 20%, rgba(124, 58, 237, 0.1), transparent 28%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
   overflow: hidden;
+  position: relative;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -292,6 +293,22 @@ h4 {
   stroke-width: 1.2;
   stroke-dasharray: 4 3;
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.24));
+}
+
+.slice-move-hint {
+  position: absolute;
+  left: 50%;
+  top: 1rem;
+  transform: translateX(-50%);
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(7, 10, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #eef1ff;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
 }
 
 .helper-row,

@@ -8,14 +8,14 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Tap Flash" />
     <meta property="og:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
-    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-2012" />
+    <meta property="og:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-2019" />
     <meta property="og:image:alt" content="Tap Flash social preview card" />
     <meta property="og:url" content="https://tap-flash-web-production.up.railway.app/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Tap Flash" />
     <meta name="twitter:description" content="A tiny browser reaction game that improves itself from real feedback through a live continuous product loop." />
-    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-2012" />
-    <link rel="stylesheet" href="/styles.css?v=20260419-2012" />
+    <meta name="twitter:image" content="https://tap-flash-web-production.up.railway.app/og-image.png?v=20260419-2019" />
+    <link rel="stylesheet" href="/styles.css?v=20260419-2019" />
     <script src="https://itbroke.dev/itbroke.js" async></script>
     <script async src="https://jam.pieter.com/2026/widget.js"></script>
     <!-- Google Tag Manager -->
@@ -159,10 +159,11 @@
         <button id="arenaButton" class="arena idle" type="button">Hold to start</button>
         <div id="sliceArena" class="slice-arena hidden">
           <div class="slice-topline">
-            <p class="helper-text">Drag the cut line, then lock it in.</p>
+            <p class="helper-text">Drag the dotted line left or right, then lock it in.</p>
             <button id="sliceSubmitButton" class="ghost-button" type="button">Lock cut</button>
           </div>
           <div id="sliceBoard" class="slice-board" aria-label="Split Fifty board">
+            <div id="sliceMoveHint" class="slice-move-hint">← move the dotted line →</div>
             <svg id="sliceSvg" viewBox="0 0 100 100" preserveAspectRatio="none">
               <polygon id="sliceShape" points="" />
               <line id="sliceCutLine" x1="50" y1="8" x2="50" y2="92" />
@@ -185,6 +186,10 @@
             <h3 id="leaderboardTitle">Daily, weekly, and all-time</h3>
           </div>
           <p id="leaderboardSubtitle" class="subtle">Scores now stay live across redeploys. 3-letter names. Only qualifying runs get in.</p>
+        </div>
+        <div class="leaderboard-mode-switch" role="tablist" aria-label="Leaderboard mode switcher">
+          <button id="leaderboardTapButton" class="mode-pill active" type="button" role="tab" aria-selected="true">Tap Flash leaderboard</button>
+          <button id="leaderboardSliceButton" class="mode-pill" type="button" role="tab" aria-selected="false">Split Fifty leaderboard</button>
         </div>
 
         <div class="leaderboard-grid">
@@ -243,6 +248,6 @@
       </footer>
     </main>
 
-    <script src="/app.js?v=20260419-2012"></script>
+    <script src="/app.js?v=20260419-2019"></script>
   </body>
 </html>

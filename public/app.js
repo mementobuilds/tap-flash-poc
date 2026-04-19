@@ -98,6 +98,8 @@ const introDismissButton = document.getElementById('introDismissButton');
 const reopenIntroButton = document.getElementById('reopenIntroButton');
 const modeTapButton = document.getElementById('modeTapButton');
 const modeSliceButton = document.getElementById('modeSliceButton');
+const leaderboardTapButton = document.getElementById('leaderboardTapButton');
+const leaderboardSliceButton = document.getElementById('leaderboardSliceButton');
 const podiumEyebrow = document.getElementById('podiumEyebrow');
 const podiumTitle = document.getElementById('podiumTitle');
 const podiumSubtitle = document.getElementById('podiumSubtitle');
@@ -141,6 +143,7 @@ const initialChallenge = readChallengeContext();
 
 const state = {
   currentMode: initialChallenge?.mode || 'tap',
+  leaderboardMode: initialChallenge?.mode || 'tap',
   phase: 'idle',
   round: 0,
   roundScores: [],
@@ -209,6 +212,8 @@ function init() {
   shareChallengeButton.addEventListener('click', handleShareChallenge);
   modeTapButton.addEventListener('click', () => switchMode('tap'));
   modeSliceButton.addEventListener('click', () => switchMode('slice'));
+  leaderboardTapButton.addEventListener('click', () => switchLeaderboardMode('tap'));
+  leaderboardSliceButton.addEventListener('click', () => switchLeaderboardMode('slice'));
 
   introModal.addEventListener('click', (event) => {
     if (event.target === introModal) dismissIntro(true);
@@ -231,11 +236,17 @@ function switchMode(mode) {
   resetGame();
   updateModeUI();
   renderChallengeBanner();
-  refreshLeaderboard();
 
   if (mode === 'slice') {
     beginSliceRound();
   }
+}
+
+function switchLeaderboardMode(mode) {
+  if (!GAME_MODES[mode] || state.leaderboardMode === mode) return;
+  state.leaderboardMode = mode;
+  updateLeaderboardModeUI();
+  refreshLeaderboard();
 }
 
 function updateModeUI() {
@@ -260,11 +271,20 @@ function updateModeUI() {
     sliceSubmitButton.textContent = state.phase === 'idle' ? config.startLabel : (state.phase === 'finished' ? config.resultsLabel : 'Lock cut');
   }
 
+  updateLeaderboardModeUI();
   updateSectionTitles();
   updateBestDisplay();
   updateAverageDisplay();
   updateSupportDisplay();
   updateShareChallengeButton();
+}
+
+function updateLeaderboardModeUI() {
+  const mode = state.leaderboardMode;
+  leaderboardTapButton.classList.toggle('active', mode === 'tap');
+  leaderboardTapButton.setAttribute('aria-selected', String(mode === 'tap'));
+  leaderboardSliceButton.classList.toggle('active', mode === 'slice');
+  leaderboardSliceButton.setAttribute('aria-selected', String(mode === 'slice'));
 }
 
 function dismissIntroIfOpen() {
@@ -678,7 +698,7 @@ function rememberName(name) {
 }
 
 function updateSectionTitles() {
-  if (state.currentMode === 'tap') {
+  if (state.leaderboardMode === 'tap') {
     podiumEyebrow.textContent = 'Global podium';
     podiumTitle.textContent = 'Top 3 all-time - Tap Flash';
     podiumSubtitle.textContent = 'These are the current Tap Flash leaders.';
@@ -690,10 +710,10 @@ function updateSectionTitles() {
 
   podiumEyebrow.textContent = 'Global podium';
   podiumTitle.textContent = 'Top 3 all-time - Split Fifty';
-  podiumSubtitle.textContent = 'Split Fifty has its own fresh board. Tap Flash scores are still under Tap Flash mode.';
+  podiumSubtitle.textContent = 'These are the current Split Fifty leaders.';
   leaderboardEyebrow.textContent = 'Split Fifty leaderboards';
   leaderboardTitle.textContent = 'Daily, weekly, and all-time';
-  leaderboardSubtitle.textContent = 'Split Fifty scores stay live separately from Tap Flash. If this looks empty, the Tap Flash scores are still there under the Tap Flash mode.';
+  leaderboardSubtitle.textContent = 'Split Fifty scores stay live separately from Tap Flash. 3-letter names. Only qualifying runs get in.';
 }
 
 function updateBestDisplay() {
@@ -754,16 +774,16 @@ function normalizeLeaderboardPayload(payload) {
   if (payload && payload.leaderboards && payload.leaderboards.daily && payload.leaderboards.weekly && payload.leaderboards.allTime) {
     return {
       generatedAt: payload.generatedAt || null,
-      mode: payload.mode || state.currentMode,
+      mode: payload.mode || state.leaderboardMode,
       leaderboards: payload.leaderboards
     };
   }
-  return emptyLeaderboardPayload();
+  return emptyLeaderboardPayload(state.leaderboardMode);
 }
 
 async function refreshLeaderboard() {
   try {
-    const response = await fetch(`/api/leaderboard?mode=${encodeURIComponent(state.currentMode)}`, {
+    const response = await fetch(`/api/leaderboard?mode=${encodeURIComponent(state.leaderboardMode)}`, {
       headers: { 'cache-control': 'no-cache' }
     });
     if (!response.ok) throw new Error('Could not load leaderboard');
@@ -784,9 +804,7 @@ function renderLeaderboards() {
     elements.list.innerHTML = '';
 
     if (!board.entries.length) {
-      elements.empty.textContent = state.currentMode === 'slice'
-        ? `${definition.emptyText} Tap Flash scores are still available under Tap Flash mode.`
-        : definition.emptyText;
+      elements.empty.textContent = definition.emptyText;
       elements.empty.classList.remove('hidden');
       elements.list.classList.add('hidden');
       return;
@@ -811,6 +829,7 @@ function renderLeaderboards() {
 }
 
 function renderPodium() {
+  updateSectionTitles();
   const entries = state.leaderboards.leaderboards.allTime?.entries || [];
   podiumElements.forEach((slot, index) => {
     const entry = entries[index] || null;
