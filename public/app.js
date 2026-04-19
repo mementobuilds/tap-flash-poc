@@ -735,10 +735,10 @@ function setSaveState(isSaving) {
   saveScoreButton.textContent = isSaving ? 'Saving…' : 'Save score';
 }
 
-function emptyLeaderboardPayload() {
+function emptyLeaderboardPayload(mode = 'tap') {
   return {
     generatedAt: null,
-    mode: state.currentMode,
+    mode,
     leaderboards: Object.fromEntries(
       Object.entries(BOARD_DEFINITIONS).map(([key, definition]) => [key, {
         key,
