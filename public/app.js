@@ -98,6 +98,12 @@ const introDismissButton = document.getElementById('introDismissButton');
 const reopenIntroButton = document.getElementById('reopenIntroButton');
 const modeTapButton = document.getElementById('modeTapButton');
 const modeSliceButton = document.getElementById('modeSliceButton');
+const podiumEyebrow = document.getElementById('podiumEyebrow');
+const podiumTitle = document.getElementById('podiumTitle');
+const podiumSubtitle = document.getElementById('podiumSubtitle');
+const leaderboardEyebrow = document.getElementById('leaderboardEyebrow');
+const leaderboardTitle = document.getElementById('leaderboardTitle');
+const leaderboardSubtitle = document.getElementById('leaderboardSubtitle');
 const sliceArena = document.getElementById('sliceArena');
 const sliceBoard = document.getElementById('sliceBoard');
 const sliceSvg = document.getElementById('sliceSvg');
@@ -254,6 +260,7 @@ function updateModeUI() {
     sliceSubmitButton.textContent = state.phase === 'idle' ? config.startLabel : (state.phase === 'finished' ? config.resultsLabel : 'Lock cut');
   }
 
+  updateSectionTitles();
   updateBestDisplay();
   updateAverageDisplay();
   updateSupportDisplay();
@@ -627,9 +634,21 @@ function getBestKey(mode) {
 
 function loadBestScore(mode) {
   const raw = localStorage.getItem(getBestKey(mode));
-  if (!raw) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
+  if (raw) {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  if (mode === 'tap') {
+    const legacy = localStorage.getItem('tap-flash-best-average');
+    const parsedLegacy = Number(legacy);
+    if (Number.isFinite(parsedLegacy)) {
+      localStorage.setItem(getBestKey('tap'), String(parsedLegacy));
+      return parsedLegacy;
+    }
+  }
+
+  return null;
 }
 
 function saveBestScore(mode, score) {
@@ -656,6 +675,25 @@ function rememberName(name) {
   if (sanitized.length !== 3) return;
   state.rememberedName = sanitized;
   sessionStorage.setItem(PLAYER_NAME_KEY, sanitized);
+}
+
+function updateSectionTitles() {
+  if (state.currentMode === 'tap') {
+    podiumEyebrow.textContent = 'Global podium';
+    podiumTitle.textContent = 'Top 3 all-time - Tap Flash';
+    podiumSubtitle.textContent = 'These are the current Tap Flash leaders.';
+    leaderboardEyebrow.textContent = 'Tap Flash leaderboards';
+    leaderboardTitle.textContent = 'Daily, weekly, and all-time';
+    leaderboardSubtitle.textContent = 'Tap Flash scores stay live across redeploys. 3-letter names. Only qualifying runs get in.';
+    return;
+  }
+
+  podiumEyebrow.textContent = 'Global podium';
+  podiumTitle.textContent = 'Top 3 all-time - Split Fifty';
+  podiumSubtitle.textContent = 'Split Fifty has its own fresh board. Tap Flash scores are still under Tap Flash mode.';
+  leaderboardEyebrow.textContent = 'Split Fifty leaderboards';
+  leaderboardTitle.textContent = 'Daily, weekly, and all-time';
+  leaderboardSubtitle.textContent = 'Split Fifty scores stay live separately from Tap Flash. If this looks empty, the Tap Flash scores are still there under the Tap Flash mode.';
 }
 
 function updateBestDisplay() {
@@ -746,7 +784,9 @@ function renderLeaderboards() {
     elements.list.innerHTML = '';
 
     if (!board.entries.length) {
-      elements.empty.textContent = definition.emptyText;
+      elements.empty.textContent = state.currentMode === 'slice'
+        ? `${definition.emptyText} Tap Flash scores are still available under Tap Flash mode.`
+        : definition.emptyText;
       elements.empty.classList.remove('hidden');
       elements.list.classList.add('hidden');
       return;
