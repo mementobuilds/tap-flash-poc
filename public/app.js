@@ -1,6 +1,7 @@
 const TOTAL_ROUNDS = 5;
 const STORAGE_KEY_PREFIX = 'tap-flash-best-score';
 const PLAYER_NAME_KEY = 'tap-flash-player-name-v1';
+const SLICE_HINT_SEEN_KEY = 'tap-flash-slice-hint-seen-v1';
 const INTRO_SEEN_KEY = 'tap-flash-intro-seen-v1';
 const LEADERBOARD_LIMIT = 10;
 const EARLY_CLICK_PENALTY_MS = 100;
@@ -98,8 +99,6 @@ const introDismissButton = document.getElementById('introDismissButton');
 const reopenIntroButton = document.getElementById('reopenIntroButton');
 const modeTapButton = document.getElementById('modeTapButton');
 const modeSliceButton = document.getElementById('modeSliceButton');
-const leaderboardTapButton = document.getElementById('leaderboardTapButton');
-const leaderboardSliceButton = document.getElementById('leaderboardSliceButton');
 const podiumEyebrow = document.getElementById('podiumEyebrow');
 const podiumTitle = document.getElementById('podiumTitle');
 const podiumSubtitle = document.getElementById('podiumSubtitle');
@@ -108,6 +107,7 @@ const leaderboardTitle = document.getElementById('leaderboardTitle');
 const leaderboardSubtitle = document.getElementById('leaderboardSubtitle');
 const sliceArena = document.getElementById('sliceArena');
 const sliceBoard = document.getElementById('sliceBoard');
+const sliceMoveHint = document.getElementById('sliceMoveHint');
 const sliceSvg = document.getElementById('sliceSvg');
 const sliceShape = document.getElementById('sliceShape');
 const sliceCutLine = document.getElementById('sliceCutLine');
@@ -143,7 +143,6 @@ const initialChallenge = readChallengeContext();
 
 const state = {
   currentMode: initialChallenge?.mode || 'tap',
-  leaderboardMode: initialChallenge?.mode || 'tap',
   phase: 'idle',
   round: 0,
   roundScores: [],
@@ -212,8 +211,6 @@ function init() {
   shareChallengeButton.addEventListener('click', handleShareChallenge);
   modeTapButton.addEventListener('click', () => switchMode('tap'));
   modeSliceButton.addEventListener('click', () => switchMode('slice'));
-  leaderboardTapButton.addEventListener('click', () => switchLeaderboardMode('tap'));
-  leaderboardSliceButton.addEventListener('click', () => switchLeaderboardMode('slice'));
 
   introModal.addEventListener('click', (event) => {
     if (event.target === introModal) dismissIntro(true);
@@ -236,17 +233,11 @@ function switchMode(mode) {
   resetGame();
   updateModeUI();
   renderChallengeBanner();
+  refreshLeaderboard();
 
   if (mode === 'slice') {
     beginSliceRound();
   }
-}
-
-function switchLeaderboardMode(mode) {
-  if (!GAME_MODES[mode] || state.leaderboardMode === mode) return;
-  state.leaderboardMode = mode;
-  updateLeaderboardModeUI();
-  refreshLeaderboard();
 }
 
 function updateModeUI() {
@@ -271,20 +262,12 @@ function updateModeUI() {
     sliceSubmitButton.textContent = state.phase === 'idle' ? config.startLabel : (state.phase === 'finished' ? config.resultsLabel : 'Lock cut');
   }
 
-  updateLeaderboardModeUI();
   updateSectionTitles();
   updateBestDisplay();
   updateAverageDisplay();
   updateSupportDisplay();
   updateShareChallengeButton();
-}
-
-function updateLeaderboardModeUI() {
-  const mode = state.leaderboardMode;
-  leaderboardTapButton.classList.toggle('active', mode === 'tap');
-  leaderboardTapButton.setAttribute('aria-selected', String(mode === 'tap'));
-  leaderboardSliceButton.classList.toggle('active', mode === 'slice');
-  leaderboardSliceButton.setAttribute('aria-selected', String(mode === 'slice'));
+  updateSliceMoveHint();
 }
 
 function dismissIntroIfOpen() {
@@ -458,6 +441,7 @@ function handleSlicePointerDown(event) {
   if (state.currentMode !== 'slice' || state.phase !== 'playing') return;
   dismissIntroIfOpen();
   state.slice.isDragging = true;
+  markSliceHintSeen();
   if (typeof sliceBoard.setPointerCapture === 'function') {
     try { sliceBoard.setPointerCapture(event.pointerId); } catch {}
   }
@@ -698,7 +682,7 @@ function rememberName(name) {
 }
 
 function updateSectionTitles() {
-  if (state.leaderboardMode === 'tap') {
+  if (state.currentMode === 'tap') {
     podiumEyebrow.textContent = 'Global podium';
     podiumTitle.textContent = 'Top 3 all-time - Tap Flash';
     podiumSubtitle.textContent = 'These are the current Tap Flash leaders.';
@@ -774,16 +758,16 @@ function normalizeLeaderboardPayload(payload) {
   if (payload && payload.leaderboards && payload.leaderboards.daily && payload.leaderboards.weekly && payload.leaderboards.allTime) {
     return {
       generatedAt: payload.generatedAt || null,
-      mode: payload.mode || state.leaderboardMode,
+      mode: payload.mode || state.currentMode,
       leaderboards: payload.leaderboards
     };
   }
-  return emptyLeaderboardPayload(state.leaderboardMode);
+  return emptyLeaderboardPayload(state.currentMode);
 }
 
 async function refreshLeaderboard() {
   try {
-    const response = await fetch(`/api/leaderboard?mode=${encodeURIComponent(state.leaderboardMode)}`, {
+    const response = await fetch(`/api/leaderboard?mode=${encodeURIComponent(state.currentMode)}`, {
       headers: { 'cache-control': 'no-cache' }
     });
     if (!response.ok) throw new Error('Could not load leaderboard');
@@ -1051,8 +1035,19 @@ function formatScore(score, mode = state.currentMode) {
   return getModeConfig(mode).formatScore(score);
 }
 
+function updateSliceMoveHint() {
+  const seen = sessionStorage.getItem(SLICE_HINT_SEEN_KEY) === '1';
+  sliceMoveHint.classList.toggle('hidden', state.currentMode !== 'slice' || seen);
+}
+
+function markSliceHintSeen() {
+  sessionStorage.setItem(SLICE_HINT_SEEN_KEY, '1');
+  updateSliceMoveHint();
+}
+
 function renderSliceBoard() {
   const shape = state.slice.currentShape;
+  updateSliceMoveHint();
   if (!shape) {
     sliceShape.setAttribute('points', '');
     sliceCutLine.setAttribute('x1', 50);

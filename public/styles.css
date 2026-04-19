@@ -173,8 +173,7 @@ h4 {
   gap: 1rem;
 }
 
-.mode-switch,
-.leaderboard-mode-switch {
+.mode-switch {
   display: inline-flex;
   gap: 0.65rem;
   flex-wrap: wrap;
@@ -698,8 +697,7 @@ h4 {
     grid-template-columns: 1fr;
   }
 
-  .mode-switch,
-  .leaderboard-mode-switch {
+  .mode-switch {
     width: 100%;
   }
 
