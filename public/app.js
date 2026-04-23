@@ -97,6 +97,7 @@ const celebrationLayer = document.getElementById('celebrationLayer');
 const introModal = document.getElementById('introModal');
 const introDismissButton = document.getElementById('introDismissButton');
 const reopenIntroButton = document.getElementById('reopenIntroButton');
+const postRunReveal = document.getElementById('postRunReveal');
 const modeTapButton = document.getElementById('modeTapButton');
 const modeSliceButton = document.getElementById('modeSliceButton');
 const podiumEyebrow = document.getElementById('podiumEyebrow');
@@ -219,7 +220,6 @@ function init() {
     if (event.key === 'Escape' && !introModal.classList.contains('hidden')) dismissIntro(true);
   });
 
-  if (!localStorage.getItem(INTRO_SEEN_KEY)) showIntro();
 }
 
 function getModeConfig(mode = state.currentMode) {
@@ -547,6 +547,7 @@ async function finishGame() {
   state.lastCompletedScore = average;
   updateAverageDisplay(average);
   updateShareChallengeButton();
+  showPostRunReveal();
   restartButton.classList.remove('hidden');
 
   if (state.currentMode === 'tap' && average <= CELEBRATION_GOOD_SCORE_MS) {
@@ -592,6 +593,7 @@ function resetGame() {
   qualifyingBoards.textContent = '';
   initialsInput.value = state.rememberedName || '';
   setSaveState(false);
+  hidePostRunReveal();
   updateShareChallengeButton();
   updateModeUI();
   if (state.currentMode === 'tap') {
@@ -611,6 +613,14 @@ function setArenaState(phase, label) {
 function showIntro() {
   introModal.classList.remove('hidden');
   document.body.classList.add('modal-open');
+}
+
+function showPostRunReveal() {
+  postRunReveal.classList.remove('hidden');
+}
+
+function hidePostRunReveal() {
+  postRunReveal.classList.add('hidden');
 }
 
 function dismissIntro(markSeen = false) {
