@@ -33,6 +33,22 @@ const mimeTypes = {
   '.ico': 'image/x-icon'
 };
 
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://itbroke.dev https://jam.pieter.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://region1.google-analytics.com",
+  "frame-src https://www.googletagmanager.com",
+  "media-src 'self'",
+  "worker-src 'self'",
+  'upgrade-insecure-requests'
+].join('; ');
+
 const boardDefinitions = {
   daily: {
     key: 'daily',
@@ -252,10 +268,21 @@ function addLeaderboardEntry(name, score, mode = 'tap') {
   };
 }
 
+function buildSecurityHeaders() {
+  return {
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Content-Security-Policy': contentSecurityPolicy
+  };
+}
+
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-cache'
+    'Cache-Control': 'no-cache',
+    ...buildSecurityHeaders()
   });
   res.end(JSON.stringify(payload));
 }
@@ -284,7 +311,10 @@ function collectJson(req) {
 function sendFile(res, filePath) {
   fs.readFile(filePath, (err, data) => {
     if (err) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.writeHead(404, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        ...buildSecurityHeaders()
+      });
       res.end('Not found');
       return;
     }
@@ -292,7 +322,8 @@ function sendFile(res, filePath) {
     const ext = path.extname(filePath).toLowerCase();
     res.writeHead(200, {
       'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-      'Cache-Control': ext === '.html' ? 'no-store, max-age=0' : 'public, max-age=3600'
+      'Cache-Control': ext === '.html' ? 'no-store, max-age=0' : 'public, max-age=3600',
+      ...buildSecurityHeaders()
     });
     res.end(data);
   });
@@ -346,7 +377,10 @@ const server = http.createServer(async (req, res) => {
   let filePath = path.join(publicDir, safePath === '/' ? 'index.html' : safePath);
 
   if (!filePath.startsWith(publicDir)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.writeHead(403, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      ...buildSecurityHeaders()
+    });
     res.end('Forbidden');
     return;
   }
