@@ -8,6 +8,7 @@ const publicDir = path.join(__dirname, 'public');
 const localStateDir = path.join(__dirname, '.state');
 const storageDir = resolveStorageDir();
 const leaderboardPath = path.join(storageDir, 'leaderboard-store.json');
+const leaderboardBackupPath = path.join(storageDir, 'leaderboard-store.pre-30650-backup.json');
 const legacyLeaderboardPath = path.join(localStateDir, 'leaderboard.json');
 const LEADERBOARD_LIMIT = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -167,10 +168,12 @@ function readLeaderboardStore() {
   try {
     const parsed = JSON.parse(fs.readFileSync(leaderboardPath, 'utf8'));
     const rawScores = Array.isArray(parsed?.scores) ? parsed.scores : [];
-    const scores = rawScores.map(sanitizeEntry).filter(Boolean);
+    let scores = rawScores.map(sanitizeEntry).filter(Boolean);
     if (scores.length !== rawScores.length) {
       writeLeaderboardStore({ version: 2, scores });
     }
+
+    scores = maybeRestoreFromBackup(scores);
 
     return {
       version: 2,
@@ -187,6 +190,25 @@ function writeLeaderboardStore(store) {
     version: 2,
     scores: Array.isArray(store?.scores) ? store.scores : []
   }, null, 2));
+}
+
+function maybeRestoreFromBackup(currentScores) {
+  if (currentScores.length > 0) return currentScores;
+  if (!fs.existsSync(leaderboardBackupPath)) return currentScores;
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(leaderboardBackupPath, 'utf8'));
+    const restoredScores = Array.isArray(parsed?.scores)
+      ? parsed.scores.map(sanitizeEntry).filter(Boolean)
+      : [];
+
+    if (!restoredScores.length) return currentScores;
+
+    writeLeaderboardStore({ version: 2, scores: restoredScores });
+    return restoredScores;
+  } catch {
+    return currentScores;
+  }
 }
 
 function sortEntries(entries) {
