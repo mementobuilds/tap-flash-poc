@@ -15,11 +15,15 @@ const WEEK_MS = 7 * DAY_MS;
 const GAME_MODES = {
   tap: {
     key: 'tap',
-    label: 'Tap Flash'
+    label: 'Tap Flash',
+    minScore: 50,
+    maxScore: 5000
   },
   slice: {
     key: 'slice',
-    label: 'Split Fifty'
+    label: 'Split Fifty',
+    minScore: 0,
+    maxScore: 10000
   }
 };
 
@@ -105,16 +109,18 @@ function sanitizeMode(value) {
 
 function sanitizeEntry(entry) {
   if (!entry || typeof entry.name !== 'string') return null;
+  const mode = sanitizeMode(entry.mode);
   const score = Number(entry.score);
   const createdAt = toIsoDate(entry.createdAt || new Date().toISOString());
-  if (!createdAt || !Number.isFinite(score) || score < 0) return null;
+  const rules = GAME_MODES[mode];
+  if (!createdAt || !Number.isFinite(score) || score < rules.minScore || score > rules.maxScore) return null;
 
   const name = String(entry.name).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
   if (name.length !== 3) return null;
 
   return {
     id: typeof entry.id === 'string' && entry.id ? entry.id : crypto.randomUUID(),
-    mode: sanitizeMode(entry.mode),
+    mode,
     name,
     score: Math.round(score),
     createdAt
@@ -160,9 +166,11 @@ function readLeaderboardStore() {
 
   try {
     const parsed = JSON.parse(fs.readFileSync(leaderboardPath, 'utf8'));
-    const scores = Array.isArray(parsed?.scores)
-      ? parsed.scores.map(sanitizeEntry).filter(Boolean)
-      : [];
+    const rawScores = Array.isArray(parsed?.scores) ? parsed.scores : [];
+    const scores = rawScores.map(sanitizeEntry).filter(Boolean);
+    if (scores.length !== rawScores.length) {
+      writeLeaderboardStore({ version: 2, scores });
+    }
 
     return {
       version: 2,
@@ -344,12 +352,13 @@ const server = http.createServer(async (req, res) => {
       const name = String(payload.name || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
       const score = Number(payload.score);
       const mode = sanitizeMode(payload.mode || 'tap');
+      const rules = GAME_MODES[mode];
 
       if (name.length !== 3) {
         return sendJson(res, 400, { error: 'Name must be exactly 3 characters.' });
       }
-      if (!Number.isFinite(score) || score < 0) {
-        return sendJson(res, 400, { error: 'Score must be zero or a positive number.' });
+      if (!Number.isFinite(score) || score < rules.minScore || score > rules.maxScore) {
+        return sendJson(res, 400, { error: `Score must be between ${rules.minScore} and ${rules.maxScore} for ${rules.label}.` });
       }
 
       const result = addLeaderboardEntry(name, Math.round(score), mode);

@@ -45,7 +45,7 @@ const GAME_MODES = {
     supportLabel: 'Penalties',
     supportDisplay: (state) => `+${state.penaltyTotal} ms`,
     formatScore: (score) => `${Math.round(score)} ms`,
-    shareText: (name, score, url) => `${name} just threw down a Tap Flash challenge: beat ${Math.round(score)} ms. ${url}`,
+    shareText: (_name, score, url) => `I got ${Math.round(score)} ms in Tap Flash. Beat me! ${url}`,
     challengeText: (challenger, score) => `${challenger} challenged you to beat ${Math.round(score)} ms. Think you can top it?`,
     qualifyingMessage: (keys) => keys.length === 1
       ? `You cracked the ${humanizeBoardNames(keys)} board. Add your 3-letter name.`
@@ -65,7 +65,7 @@ const GAME_MODES = {
     supportLabel: 'Perfect cuts',
     supportDisplay: (state) => String(state.perfectCuts),
     formatScore: (score) => `${(Number(score) / 100).toFixed(2)}% off`,
-    shareText: (name, score, url) => `${name} just threw down a Split Fifty challenge: beat ${(Number(score) / 100).toFixed(2)}% off. ${url}`,
+    shareText: (_name, score, url) => `I got ${(Number(score) / 100).toFixed(2)}% off in Split Fifty. Beat me! ${url}`,
     challengeText: (challenger, score) => `${challenger} challenged you to get closer than ${(Number(score) / 100).toFixed(2)}% off.`,
     qualifyingMessage: (keys) => keys.length === 1
       ? `Nice cut. You cracked the ${humanizeBoardNames(keys)} board. Add your 3-letter name.`
