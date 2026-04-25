@@ -35,9 +35,9 @@ const GAME_MODES = {
     key: 'tap',
     label: 'Tap Flash',
     heroLabel: 'Reaction mode',
-    statusIdle: 'Press and hold when you’re ready.',
+    statusIdle: 'Hold steady, then release when TAP appears.',
     startLabel: 'Hold to start',
-    nextLabel: 'Hold to start next round',
+    nextLabel: 'Hold for next round',
     resultsLabel: 'Play again',
     roundLabel: 'Round',
     averageLabel: 'Average',
@@ -55,8 +55,8 @@ const GAME_MODES = {
     key: 'slice',
     label: 'Split Fifty',
     heroLabel: 'Split mode',
-    statusIdle: 'Tap Start round, drag the cut line, then lock it in.',
-    startLabel: 'Start round',
+    statusIdle: 'Drag the dotted line, then lock your cut.',
+    startLabel: 'Start Split Fifty',
     nextLabel: 'Next shape',
     resultsLabel: 'Play again',
     roundLabel: 'Round',
@@ -76,6 +76,7 @@ const GAME_MODES = {
 const arenaButton = document.getElementById('arenaButton');
 const restartButton = document.getElementById('restartButton');
 const statusMessage = document.getElementById('statusMessage');
+const actionCue = document.getElementById('actionCue');
 const roundDisplay = document.getElementById('roundDisplay');
 const averageDisplay = document.getElementById('averageDisplay');
 const bestDisplay = document.getElementById('bestDisplay');
@@ -268,6 +269,36 @@ function updateModeUI() {
   updateSupportDisplay();
   updateShareChallengeButton();
   updateSliceMoveHint();
+  updateActionCue();
+}
+
+function updateActionCue() {
+  if (state.currentMode === 'tap') {
+    if (state.phase === 'waiting') {
+      actionCue.textContent = 'HOLD';
+      return;
+    }
+    if (state.phase === 'ready') {
+      actionCue.textContent = 'RELEASE!';
+      return;
+    }
+    if (state.phase === 'finished') {
+      actionCue.textContent = 'NICE RUN';
+      return;
+    }
+    actionCue.textContent = 'HOLD TO START';
+    return;
+  }
+
+  if (state.phase === 'playing') {
+    actionCue.textContent = 'DRAG + LOCK CUT';
+    return;
+  }
+  if (state.phase === 'finished') {
+    actionCue.textContent = 'NICE CUT';
+    return;
+  }
+  actionCue.textContent = 'DRAG THE LINE';
 }
 
 function dismissIntroIfOpen() {
@@ -485,11 +516,12 @@ function beginSliceRound() {
   state.slice.currentShape = generateSliceShape();
   state.slice.cutX = 50;
   roundDisplay.textContent = `${state.round} / ${TOTAL_ROUNDS}`;
-  statusMessage.textContent = `Round ${state.round}: drag the cut line and try to split the shape 50:50.`;
+  statusMessage.textContent = `Round ${state.round}: drag the line and try to split the shape 50:50.`;
   lastResult.textContent = state.round === 1 && state.roundScores.length === 0
-    ? 'Split Fifty is live. Drag the line, then tap Lock cut.'
-    : 'The closer to a perfect half, the better.';
+    ? 'Drag the dotted line, then tap Lock cut.'
+    : 'Closer to 50:50 is better.';
   sliceSubmitButton.textContent = 'Lock cut';
+  updateActionCue();
   renderSliceBoard();
 }
 
@@ -516,6 +548,7 @@ function submitSliceCut() {
     ? 'Run complete.'
     : 'Nice cut. Tap Next shape when you want another one.';
   sliceSubmitButton.textContent = state.roundScores.length === TOTAL_ROUNDS ? getModeConfig().resultsLabel : getModeConfig().nextLabel;
+  updateActionCue();
 
   if (score <= 250) {
     celebrate({ intensity: score <= 100 ? 'big' : 'medium' });
@@ -542,6 +575,7 @@ async function finishGame() {
     statusMessage.textContent = average <= 150 ? 'That was surgical.' : average <= 300 ? 'Clean slicing.' : 'Not bad. You can get even closer.';
     lastResult.textContent = `Final average: ${formatScore(average)} across ${TOTAL_ROUNDS} cuts. Perfect cuts: ${state.perfectCuts}.`;
     sliceSubmitButton.textContent = getModeConfig().resultsLabel;
+    updateActionCue();
   }
 
   state.lastCompletedScore = average;
@@ -608,6 +642,7 @@ function resetGame() {
 function setArenaState(phase, label) {
   arenaButton.className = `arena ${phase}`;
   arenaButton.textContent = label;
+  updateActionCue();
 }
 
 function showIntro() {

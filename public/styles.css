@@ -231,6 +231,18 @@ h4 {
   text-align: center;
 }
 
+.action-cue {
+  justify-self: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .status-message {
   text-align: center;
   color: #d8dee8;
