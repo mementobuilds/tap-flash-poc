@@ -45,7 +45,7 @@ const GAME_MODES = {
     supportLabel: 'Penalties',
     supportDisplay: (state) => `+${state.penaltyTotal} ms`,
     formatScore: (score) => `${Math.round(score)} ms`,
-    shareText: (_name, score, url) => `I got ${Math.round(score)} ms in Tap Flash. Beat me! ${url}`,
+    shareText: (_name, score) => `I got ${Math.round(score)} ms in Tap Flash. Beat me!`,
     challengeText: (challenger, score) => `${challenger} challenged you to beat ${Math.round(score)} ms. Think you can top it?`,
     qualifyingMessage: (keys) => keys.length === 1
       ? `You cracked the ${humanizeBoardNames(keys)} board. Add your 3-letter name.`
@@ -65,7 +65,7 @@ const GAME_MODES = {
     supportLabel: 'Perfect cuts',
     supportDisplay: (state) => String(state.perfectCuts),
     formatScore: (score) => `${(Number(score) / 100).toFixed(2)}% off`,
-    shareText: (_name, score, url) => `I got ${(Number(score) / 100).toFixed(2)}% off in Split Fifty. Beat me! ${url}`,
+    shareText: (_name, score) => `I got ${(Number(score) / 100).toFixed(2)}% off in Split Fifty. Beat me!`,
     challengeText: (challenger, score) => `${challenger} challenged you to get closer than ${(Number(score) / 100).toFixed(2)}% off.`,
     qualifyingMessage: (keys) => keys.length === 1
       ? `Nice cut. You cracked the ${humanizeBoardNames(keys)} board. Add your 3-letter name.`
@@ -90,10 +90,14 @@ const challengeBanner = document.getElementById('challengeBanner');
 const shareChallengeButton = document.getElementById('shareChallengeButton');
 const leaderboardForm = document.getElementById('leaderboardForm');
 const initialsInput = document.getElementById('initialsInput');
-const qualifyingScore = document.getElementById('qualifyingScore');
 const leaderboardMessage = document.getElementById('leaderboardMessage');
 const qualifyingBoards = document.getElementById('qualifyingBoards');
 const saveScoreButton = document.getElementById('saveScoreButton');
+const shareSheet = document.getElementById('shareSheet');
+const shareTextOutput = document.getElementById('shareTextOutput');
+const openShareLinkButton = document.getElementById('openShareLinkButton');
+const copyShareTextButton = document.getElementById('copyShareTextButton');
+const closeShareSheetButton = document.getElementById('closeShareSheetButton');
 const celebrationLayer = document.getElementById('celebrationLayer');
 const introModal = document.getElementById('introModal');
 const introDismissButton = document.getElementById('introDismissButton');
@@ -211,6 +215,8 @@ function init() {
   introDismissButton.addEventListener('click', () => dismissIntro(true));
   reopenIntroButton.addEventListener('click', () => showIntro());
   shareChallengeButton.addEventListener('click', handleShareChallenge);
+  copyShareTextButton.addEventListener('click', handleCopyShareText);
+  closeShareSheetButton.addEventListener('click', hideShareSheet);
   modeTapButton.addEventListener('click', () => switchMode('tap'));
   modeSliceButton.addEventListener('click', () => switchMode('slice'));
 
@@ -762,9 +768,20 @@ function updateSupportDisplay() {
 function updateShareChallengeButton() {
   if (state.lastCompletedScore === null) {
     shareChallengeButton.classList.add('hidden');
+    hideShareSheet();
     return;
   }
   shareChallengeButton.classList.remove('hidden');
+}
+
+function showShareSheet(text, url) {
+  shareTextOutput.value = text;
+  openShareLinkButton.href = url;
+  shareSheet.classList.remove('hidden');
+}
+
+function hideShareSheet() {
+  shareSheet.classList.add('hidden');
 }
 
 function renderChallengeBanner() {
@@ -891,8 +908,7 @@ async function maybeQualifyForLeaderboard(score) {
       return;
     }
 
-    qualifyingScore.textContent = formatScore(score);
-    qualifyingBoards.textContent = humanizeBoardNames(qualifyingKeys);
+    qualifyingBoards.textContent = `${formatScore(score)} · ${humanizeBoardNames(qualifyingKeys)}`;
     leaderboardMessage.textContent = getModeConfig().qualifyingMessage(qualifyingKeys);
     leaderboardForm.classList.remove('hidden');
     initialsInput.value = state.rememberedName || '';
@@ -976,7 +992,7 @@ function humanizeBoardNames(keys) {
 }
 
 function sanitizeInitials(value) {
-  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
 }
 
 function buildChallengeSharePayload() {
@@ -1000,6 +1016,9 @@ async function handleShareChallenge() {
   const payload = buildChallengeSharePayload();
   if (!payload) return;
 
+  const fullText = `${payload.text} ${payload.url}`;
+  showShareSheet(fullText, payload.url);
+
   try {
     if (navigator.share) {
       await navigator.share(payload);
@@ -1010,15 +1029,28 @@ async function handleShareChallenge() {
     }
 
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(payload.text);
-      lastResult.textContent = 'Challenge link copied. Send it to a friend and make them sweat.';
+      await navigator.clipboard.writeText(fullText);
+      lastResult.textContent = 'Challenge text copied. You can also open the link directly below.';
       return;
     }
   } catch (error) {
     if (error?.name === 'AbortError') return;
   }
 
-  lastResult.textContent = payload.url;
+  lastResult.textContent = 'Share text is ready below.';
+}
+
+async function handleCopyShareText() {
+  const text = shareTextOutput.value;
+  if (!text) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      lastResult.textContent = 'Share text copied.';
+      return;
+    }
+  } catch {}
+  lastResult.textContent = 'Copy the share text from the box below.';
 }
 
 function celebrate({ intensity = 'medium' } = {}) {

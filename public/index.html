@@ -126,6 +126,40 @@
             <button id="restartButton" class="ghost-button hidden" type="button">Play again</button>
           </div>
         </div>
+        <form id="leaderboardForm" class="leaderboard-form hidden leaderboard-form-inline">
+          <label for="initialsInput">
+            Save your score with 3 letters
+            <span id="qualifyingBoards" class="form-meta"></span>
+          </label>
+          <div class="leaderboard-form-row">
+            <input
+              id="initialsInput"
+              name="initials"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              maxlength="3"
+              placeholder="ABC"
+              aria-label="3-letter leaderboard name"
+            />
+            <button id="saveScoreButton" type="submit" class="ghost-button">Save score</button>
+          </div>
+          <p id="leaderboardMessage" class="helper-text"></p>
+        </form>
+        <div id="shareSheet" class="share-sheet hidden">
+          <div class="share-sheet-topline">
+            <div>
+              <p class="label">Share challenge</p>
+              <h3>Beat this score</h3>
+            </div>
+            <button id="closeShareSheetButton" class="ghost-button" type="button">Close</button>
+          </div>
+          <textarea id="shareTextOutput" class="share-text-output" readonly></textarea>
+          <div class="helper-actions">
+            <a id="openShareLinkButton" class="ghost-button project-link-button" href="#" target="_blank" rel="noopener noreferrer">Open link</a>
+            <button id="copyShareTextButton" class="ghost-button" type="button">Copy text</button>
+          </div>
+        </div>
         <div id="postRunReveal" class="post-run-reveal hidden">
           <p class="label">A little secret</p>
           <h3>This game changes when players poke it.</h3>
@@ -203,26 +237,6 @@
           </article>
         </div>
 
-        <form id="leaderboardForm" class="leaderboard-form hidden">
-          <label for="initialsInput">
-            Add your 3-letter name for <strong id="qualifyingScore"></strong>
-            <span id="qualifyingBoards" class="form-meta"></span>
-          </label>
-          <div class="leaderboard-form-row">
-            <input
-              id="initialsInput"
-              name="initials"
-              type="text"
-              inputmode="text"
-              autocomplete="off"
-              maxlength="3"
-              placeholder="GOJ"
-              aria-label="3-letter leaderboard name"
-            />
-            <button id="saveScoreButton" type="submit" class="ghost-button">Save score</button>
-          </div>
-          <p id="leaderboardMessage" class="helper-text"></p>
-        </form>
       </section>
 
       <footer class="site-footer">

@@ -568,6 +568,38 @@ h4 {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.leaderboard-form-inline {
+  margin-top: 0.35rem;
+}
+
+.share-sheet {
+  padding: 1rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.share-sheet-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.share-text-output {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  font: inherit;
+}
+
 .leaderboard-form label {
   display: block;
   margin-bottom: 0.8rem;
