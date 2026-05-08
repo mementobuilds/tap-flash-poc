@@ -7,6 +7,7 @@ const LEADERBOARD_LIMIT = 10;
 const EARLY_CLICK_PENALTY_MS = 100;
 const CELEBRATION_GOOD_SCORE_MS = 320;
 const SLICE_PERFECT_THRESHOLD_BPS = 50;
+const SLICE_STARTING_DEVIATION_MIN_BPS = 200;
 const DEFAULT_CHALLENGER_NAME = 'TAP';
 
 const BOARD_DEFINITIONS = {
@@ -519,7 +520,7 @@ function beginSliceRound() {
 
   state.phase = 'playing';
   state.round = state.roundScores.length + 1;
-  state.slice.currentShape = generateSliceShape();
+  state.slice.currentShape = generatePlayableSliceShape();
   state.slice.cutX = 50;
   roundDisplay.textContent = `${state.round} / ${TOTAL_ROUNDS}`;
   statusMessage.textContent = `Round ${state.round}: drag the line and try to split the shape 50:50.`;
@@ -538,8 +539,7 @@ function submitSliceCut() {
   const leftPoly = clipPolygonAgainstVerticalLine(state.slice.currentShape, state.slice.cutX, 'left');
   const leftArea = Math.abs(polygonArea(leftPoly));
   const leftRatio = totalArea > 0 ? leftArea / totalArea : 0.5;
-  const deviationPercent = Math.abs(leftRatio - 0.5) * 200;
-  const score = Math.round(deviationPercent * 100);
+  const score = evaluateSliceDeviationScore(state.slice.currentShape, state.slice.cutX);
 
   state.roundScores.push(score);
   state.phase = 'idle';
@@ -1122,6 +1122,15 @@ function markSliceHintSeen() {
   updateSliceMoveHint();
 }
 
+function evaluateSliceDeviationScore(shape, cutX) {
+  const totalArea = Math.abs(polygonArea(shape));
+  const leftPoly = clipPolygonAgainstVerticalLine(shape, cutX, 'left');
+  const leftArea = Math.abs(polygonArea(leftPoly));
+  const leftRatio = totalArea > 0 ? leftArea / totalArea : 0.5;
+  const deviationPercent = Math.abs(leftRatio - 0.5) * 200;
+  return Math.round(deviationPercent * 100);
+}
+
 function renderSliceBoard() {
   const shape = state.slice.currentShape;
   updateSliceMoveHint();
@@ -1149,6 +1158,16 @@ function generateSliceShape() {
     points.push({ x, y });
   }
   return points;
+}
+
+function generatePlayableSliceShape() {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const shape = generateSliceShape();
+    if (evaluateSliceDeviationScore(shape, 50) >= SLICE_STARTING_DEVIATION_MIN_BPS) {
+      return shape;
+    }
+  }
+  return generateSliceShape();
 }
 
 function polygonArea(points) {
