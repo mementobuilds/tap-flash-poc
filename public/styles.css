@@ -722,25 +722,6 @@ h4 {
   gap: 1rem;
 }
 
-.intro-mode-preview {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.intro-mode-pill {
-  pointer-events: none;
-  opacity: 0.95;
-}
-
-.intro-mode-pill-tap {
-  animation: intro-pill-pulse 1.8s ease-in-out infinite;
-}
-
-.intro-mode-pill-slice {
-  animation: intro-pill-pulse 1.8s ease-in-out infinite 0.9s;
-}
-
 .intro-points {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
