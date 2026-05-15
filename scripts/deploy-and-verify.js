@@ -339,6 +339,7 @@ async function maybePostVclFollowups() {
     .slice(0, 5);
   const replyParentId = process.env.VCL_REPLY_PARENT_ID || null;
   const replyContent = process.env.VCL_REPLY_CONTENT || null;
+  const sourceType = String(process.env.VCL_SOURCE_TYPE || '').trim();
 
   if (!changelogContent && !replyContent) {
     return;
@@ -358,6 +359,11 @@ async function maybePostVclFollowups() {
   }
 
   if (replyContent) {
+    if (sourceType === 'mission_submission') {
+      console.log('Skipping VCL feedback reply because mission submissions do not support replies.');
+      return;
+    }
+
     console.log(`Posting VCL feedback reply${replyParentId ? ` to parent ${replyParentId}` : ''}...`);
     const result = await vclPost('feedback', {
       content: replyContent,
@@ -436,8 +442,7 @@ async function main() {
       console.log(`[check] index=${matches.index} app=${matches.app} css=${matches.css}`);
       if (matches.index && matches.app && matches.css) {
         console.log('Live deployment verified. Railway is serving the current local version.');
-        await maybePostVclFollowups();
-        return;
+        break;
       }
     } catch (error) {
       lastError = error;
@@ -447,15 +452,19 @@ async function main() {
     await sleep(intervalMs);
   }
 
-  console.error('Deployment verification timed out.');
-  if (lastError) {
-    console.error(`Last error: ${lastError.message}`);
+  if (!lastResult || !lastResult.matches.index || !lastResult.matches.app || !lastResult.matches.css) {
+    console.error('Deployment verification timed out.');
+    if (lastError) {
+      console.error(`Last error: ${lastError.message}`);
+    }
+    if (lastResult) {
+      console.error('Last hash comparison:');
+      console.error(JSON.stringify(lastResult, null, 2));
+    }
+    process.exit(1);
   }
-  if (lastResult) {
-    console.error('Last hash comparison:');
-    console.error(JSON.stringify(lastResult, null, 2));
-  }
-  process.exit(1);
+
+  await maybePostVclFollowups();
 }
 
 main().catch(error => {
