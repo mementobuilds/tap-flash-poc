@@ -170,6 +170,8 @@ const state = {
   tap: {
     reactionStart: 0,
     timeoutId: null,
+    resetTimeoutId: null,
+    roundToken: 0,
     activePointerId: null,
     suppressNextClick: false
   },
@@ -405,17 +407,27 @@ function releaseArenaHold(pointerId = null) {
 
 function applyEarlyReleasePenalty() {
   clearTimeout(state.tap.timeoutId);
+  clearTimeout(state.tap.resetTimeoutId);
   state.tap.timeoutId = null;
+  state.tap.roundToken += 1;
   state.penaltyTotal += EARLY_CLICK_PENALTY_MS;
   updateSupportDisplay();
   playTone('early');
+  vibratePattern([24, 30, 24]);
   setArenaState('too-soon', 'Too soon');
   statusMessage.textContent = `Too early. +${EARLY_CLICK_PENALTY_MS} ms penalty.`;
   lastResult.textContent = `Released too early. Total penalties: +${state.penaltyTotal} ms.`;
-  window.setTimeout(beginTapRound, 850);
+  state.tap.resetTimeoutId = window.setTimeout(() => {
+    state.tap.resetTimeoutId = null;
+    beginTapRound();
+  }, 850);
 }
 
 function beginTapRound() {
+  clearTimeout(state.tap.timeoutId);
+  clearTimeout(state.tap.resetTimeoutId);
+  state.tap.timeoutId = null;
+  state.tap.resetTimeoutId = null;
   if (state.round === 0 && state.roundScores.length === 0) restartButton.classList.add('hidden');
   if (state.roundScores.length >= TOTAL_ROUNDS) {
     finishGame();
@@ -424,6 +436,8 @@ function beginTapRound() {
 
   state.phase = 'waiting';
   state.round = state.roundScores.length + 1;
+  state.tap.roundToken += 1;
+  const roundToken = state.tap.roundToken;
   roundDisplay.textContent = `${state.round} / ${TOTAL_ROUNDS}`;
   statusMessage.textContent = `Round ${state.round}: press and hold, then release on TAP.`;
   lastResult.textContent = 'Hold steady. Releasing early adds a penalty.';
@@ -431,9 +445,11 @@ function beginTapRound() {
 
   const delay = 1100 + Math.random() * 2600;
   state.tap.timeoutId = window.setTimeout(() => {
+    if (state.tap.roundToken !== roundToken || state.phase !== 'waiting') return;
     state.phase = 'ready';
     state.tap.reactionStart = performance.now();
     playTone('ready');
+    vibratePattern(18);
     statusMessage.textContent = 'Release now.';
     setArenaState('ready', 'TAP');
   }, delay);
@@ -443,6 +459,7 @@ function recordTapReaction(reaction) {
   state.roundScores.push(reaction);
   state.phase = 'idle';
   state.tap.timeoutId = null;
+  vibratePattern(12);
 
   const rounded = Math.round(reaction);
   lastResult.textContent = `Round ${state.round}: ${rounded} ms`;
@@ -609,9 +626,12 @@ function handleRestart() {
 
 function resetGame() {
   clearTimeout(state.tap.timeoutId);
+  clearTimeout(state.tap.resetTimeoutId);
   state.phase = 'idle';
   state.round = 0;
   state.tap.timeoutId = null;
+  state.tap.resetTimeoutId = null;
+  state.tap.roundToken += 1;
   state.tap.reactionStart = 0;
   state.tap.activePointerId = null;
   state.roundScores = [];
@@ -1081,6 +1101,14 @@ function ensureAudio() {
   if (audioState.context.state === 'suspended') audioState.context.resume().catch(() => {});
   audioState.enabled = true;
   return audioState.context;
+}
+
+function vibratePattern(pattern) {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(pattern);
+    }
+  } catch {}
 }
 
 function playTone(type) {

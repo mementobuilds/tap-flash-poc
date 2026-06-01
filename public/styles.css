@@ -263,7 +263,7 @@ h4 {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  touch-action: none;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
   border: 1px solid rgba(255, 255, 255, 0.22);
   transition: transform 120ms ease, background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
